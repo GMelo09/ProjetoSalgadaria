@@ -1,3 +1,12 @@
+<?php
+require_once __DIR__ . '/../includes/auth.php';
+sessionStart();
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../classes/Produto.php';
+
+$produtoObj = new Produto();
+$produtos   = $produtoObj->listarProdutos(2); // categoria_id 2 = Doces
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -28,7 +37,23 @@
             <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
           </a>
         </li>
+        <?php if (!empty($_SESSION['usuario_nome'])): ?>
+        <li class="dropdown">
+          <a href="#" data-bs-toggle="dropdown" role="button">
+            <i class="bi bi-person-circle"></i> <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
+            <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <?php if (!empty($_SESSION['eh_admin'])): ?>
+            <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <?php endif; ?>
+            <li><a class="dropdown-item" href="../actions/sair.php"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+          </ul>
+        </li>
+        <?php else: ?>
         <li><a href="login.php"><i class="bi bi-person"></i> Entrar</a></li>
+        <?php endif; ?>
       </ul>
       <button class="navbar-toggler-main" id="navToggler" aria-label="Menu">
         <span></span><span></span><span></span>
@@ -46,7 +71,7 @@
       <span>Doces</span>
     </div>
     <h1>🍫 Doces</h1>
-    <p>12 opções de doces artesanais irresistíveis</p>
+    <p><?= count($produtos) ?> opções de doces artesanais irresistíveis</p>
   </div>
 </div>
 
@@ -66,32 +91,17 @@
 <section class="section">
   <div class="container">
     <div class="grid-4" id="productsGrid">
-      <?php
-      $produtos = [
-        ['id'=>20,'nome'=>'Brigadeiro Gourmet',   'desc'=>'Brigadeiro com chocolate belga 70%, cobertura com granulado.',     'preco'=>4.50,'emoji'=>'🍫','tag'=>'Clássico'],
-        ['id'=>21,'nome'=>'Beijinho de Coco',      'desc'=>'Suave, aromático, coberto de coco ralado fresquinho.',             'preco'=>4.00,'emoji'=>'🥥','tag'=>'Clássico'],
-        ['id'=>22,'nome'=>'Trufa de Morango',      'desc'=>'Ganache de morango com chocolate ao leite, cobertura de cacau.',  'preco'=>5.50,'emoji'=>'🍓','tag'=>'Premium'],
-        ['id'=>23,'nome'=>'Cajuzinho',             'desc'=>'Amendoim moído com açúcar mascavo e achocolatado.',               'preco'=>3.80,'emoji'=>'🥜','tag'=>'Clássico'],
-        ['id'=>24,'nome'=>'Olho de Sogra',         'desc'=>'Ameixa recheada com coco e açúcar, irresistível.',               'preco'=>4.20,'emoji'=>'💜','tag'=>'Clássico'],
-        ['id'=>25,'nome'=>'Palha Italiana',        'desc'=>'Biscoito amanteigado com chocolate e manteiga na medida certa.', 'preco'=>3.50,'emoji'=>'🍪','tag'=>'Especial'],
-        ['id'=>26,'nome'=>'Brigadeiro de Pistache','desc'=>'Versão sofisticada com pasta de pistache italiano importado.',   'preco'=>6.00,'emoji'=>'🟢','tag'=>'Premium'],
-        ['id'=>27,'nome'=>'Bicho de Pé',           'desc'=>'Brigadeiro de morango com recheio de coco e topo de morango.',  'preco'=>5.00,'emoji'=>'🍓','tag'=>'Especial'],
-        ['id'=>28,'nome'=>'Trufa de Limão',        'desc'=>'Suavemente azedo com ganache de limão siciliano.',              'preco'=>5.50,'emoji'=>'🍋','tag'=>'Premium'],
-        ['id'=>29,'nome'=>'Brigadeiro de Ninho',   'desc'=>'Cremoso com leite em pó ninho, textura incrível.',              'preco'=>4.80,'emoji'=>'🥛','tag'=>'Especial'],
-        ['id'=>30,'nome'=>'Docinho de Uva',        'desc'=>'Uva fresca mergulhada em brigadeiro branco e coco.',            'preco'=>4.50,'emoji'=>'🍇','tag'=>'Fruta'],
-        ['id'=>31,'nome'=>'Morango no Palito',     'desc'=>'Morango fresco coberto de chocolate belga ao leite.',           'preco'=>5.00,'emoji'=>'🍓','tag'=>'Fruta'],
-      ];
-      foreach ($produtos as $p): ?>
-      <div class="product-card" data-tag="<?= $p['tag'] ?>">
+      <?php foreach ($produtos as $p): ?>
+      <div class="product-card" data-tag="<?= htmlspecialchars($p['tag']) ?>">
         <div class="product-card-image">
           <div class="product-card-placeholder" style="background:linear-gradient(135deg,#FCE4EC,#F8BBD0);">
             <?= $p['emoji'] ?>
           </div>
-          <span class="product-badge badge-doce"><?= $p['tag'] ?></span>
+          <span class="product-badge badge-doce"><?= htmlspecialchars($p['tag']) ?></span>
         </div>
         <div class="product-card-body">
           <div class="product-name"><?= htmlspecialchars($p['nome']) ?></div>
-          <div class="product-desc"><?= htmlspecialchars($p['desc']) ?></div>
+          <div class="product-desc"><?= htmlspecialchars($p['descricao']) ?></div>
           <div class="product-price">
             R$ <?= number_format($p['preco'],2,',','.') ?>
             <span style="font-size:.75rem;color:var(--muted);font-family:var(--font-sans);font-weight:400;"> / un</span>
@@ -164,6 +174,7 @@
 
 <div class="toast-container" id="toastContainer"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../js/app.js"></script>
 <script>
 document.querySelectorAll('.filter-chip').forEach(chip => {

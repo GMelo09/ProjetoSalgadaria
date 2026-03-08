@@ -45,7 +45,7 @@ function navClass($page, $current) {
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
               <?php if (!empty($_SESSION['eh_admin'])): ?>
-              <li><a class="dropdown-item" href="<?= $base ?? '' ?>/admin/index.php">
+              <li><a class="dropdown-item" href="<?= $base ?? '' ?>/admin/dashboard.php">
                 <i class="bi bi-speedometer2"></i> Painel Admin
               </a></li>
               <li><hr class="dropdown-divider"></li>

@@ -1,3 +1,13 @@
+<?php
+require_once __DIR__ . '/includes/auth.php';
+sessionStart();
+require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/classes/Produto.php';
+
+$produtoObj = new Produto();
+$salgados   = array_slice($produtoObj->listarProdutos(1), 0, 4);
+$doces      = array_slice($produtoObj->listarProdutos(2), 0, 4);
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -29,7 +39,23 @@
             <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
           </a>
         </li>
+        <?php if (!empty($_SESSION['usuario_nome'])): ?>
+        <li class="dropdown">
+          <a href="#" data-bs-toggle="dropdown" role="button">
+            <i class="bi bi-person-circle"></i> <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
+            <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <?php if (!empty($_SESSION['eh_admin'])): ?>
+            <li><a class="dropdown-item" href="admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <?php endif; ?>
+            <li><a class="dropdown-item" href="actions/sair.php"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+          </ul>
+        </li>
+        <?php else: ?>
         <li><a href="pages/login.php"><i class="bi bi-person"></i> Entrar</a></li>
+        <?php endif; ?>
       </ul>
       <button class="navbar-toggler-main" id="navToggler" aria-label="Menu">
         <span></span><span></span><span></span>
@@ -80,14 +106,7 @@
       <div class="section-divider"></div>
     </div>
     <div class="grid-4">
-      <?php
-      $salgados = [
-        ['id'=>1,'nome'=>'Coxinha Clássica',    'desc'=>'Recheio cremoso de frango com requeijão, empanado na hora.','preco'=>3.50,'emoji'=>'🍗'],
-        ['id'=>2,'nome'=>'Esfiha de Carne',     'desc'=>'Massa fininha com tempero árabe autêntico, assada na pedra.','preco'=>3.80,'emoji'=>'🫓'],
-        ['id'=>3,'nome'=>'Bolinha de Queijo',   'desc'=>'Meia-lua recheada com queijo derretido super puxento.','preco'=>3.20,'emoji'=>'🧀'],
-        ['id'=>4,'nome'=>'Risole de Camarão',   'desc'=>'Camarão ao molho rosa com cream cheese, empanado.','preco'=>5.00,'emoji'=>'🦐'],
-      ];
-      foreach ($salgados as $p): ?>
+      <?php foreach ($salgados as $p): ?>
       <div class="product-card">
         <div class="product-card-image">
           <div class="product-card-placeholder" style="background:linear-gradient(135deg,#EFEBE9,#D7CCC8);">
@@ -97,7 +116,7 @@
         </div>
         <div class="product-card-body">
           <div class="product-name"><?= htmlspecialchars($p['nome']) ?></div>
-          <div class="product-desc"><?= htmlspecialchars($p['desc']) ?></div>
+          <div class="product-desc"><?= htmlspecialchars($p['descricao']) ?></div>
           <div class="product-price">R$ <?= number_format($p['preco'],2,',','.') ?></div>
           <div class="product-footer">
             <div class="qty-control">
@@ -167,14 +186,7 @@
       <div class="section-divider"></div>
     </div>
     <div class="grid-4">
-      <?php
-      $doces = [
-        ['id'=>20,'nome'=>'Brigadeiro Gourmet',  'desc'=>'Brigadeiro com chocolate belga 70%.','preco'=>4.50,'emoji'=>'🍫'],
-        ['id'=>21,'nome'=>'Beijinho de Coco',    'desc'=>'Suave e aromático, coberto de coco ralado.','preco'=>4.00,'emoji'=>'🥥'],
-        ['id'=>22,'nome'=>'Trufa de Morango',    'desc'=>'Ganache de morango com chocolate ao leite.','preco'=>5.50,'emoji'=>'🍓'],
-        ['id'=>23,'nome'=>'Cajuzinho',           'desc'=>'Amendoim moído com açúcar mascavo.','preco'=>3.80,'emoji'=>'🥜'],
-      ];
-      foreach ($doces as $p): ?>
+      <?php foreach ($doces as $p): ?>
       <div class="product-card">
         <div class="product-card-image">
           <div class="product-card-placeholder" style="background:linear-gradient(135deg,#FCE4EC,#F8BBD0);">
@@ -184,7 +196,7 @@
         </div>
         <div class="product-card-body">
           <div class="product-name"><?= htmlspecialchars($p['nome']) ?></div>
-          <div class="product-desc"><?= htmlspecialchars($p['desc']) ?></div>
+          <div class="product-desc"><?= htmlspecialchars($p['descricao']) ?></div>
           <div class="product-price">R$ <?= number_format($p['preco'],2,',','.') ?></div>
           <div class="product-footer">
             <div class="qty-control">
@@ -269,6 +281,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

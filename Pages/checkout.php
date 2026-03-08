@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/../includes/auth.php';
+sessionStart();
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -28,7 +32,23 @@
             <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
           </a>
         </li>
+        <?php if (!empty($_SESSION['usuario_nome'])): ?>
+        <li class="dropdown">
+          <a href="#" data-bs-toggle="dropdown" role="button">
+            <i class="bi bi-person-circle"></i> <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
+            <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <?php if (!empty($_SESSION['eh_admin'])): ?>
+            <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <?php endif; ?>
+            <li><a class="dropdown-item" href="../actions/sair.php"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+          </ul>
+        </li>
+        <?php else: ?>
         <li><a href="login.php"><i class="bi bi-person"></i> Entrar</a></li>
+        <?php endif; ?>
       </ul>
       <button class="navbar-toggler-main" id="navToggler" aria-label="Menu">
         <span></span><span></span><span></span>
@@ -76,9 +96,15 @@
         <form id="checkoutForm" action="../actions/pedido_cadastrar.php" method="POST">
           <input type="hidden" id="itensInput" name="itens_carrinho">
 
+          <?php if (!empty($_SESSION['usuario_id'])): ?>
+          <input type="hidden" name="usuario_id" value="<?= (int) $_SESSION['usuario_id'] ?>">
+          <?php endif; ?>
+
           <div class="form-group">
             <label class="form-label">Nome Completo <span class="required">*</span></label>
-            <input type="text" class="form-control" name="nome" required maxlength="100" placeholder="Seu nome completo">
+            <input type="text" class="form-control" name="nome" required maxlength="100"
+                   placeholder="Seu nome completo"
+                   value="<?= htmlspecialchars($_SESSION['usuario_nome'] ?? '') ?>">
           </div>
 
           <div class="form-row">
@@ -210,6 +236,7 @@
 
 <div class="toast-container" id="toastContainer"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../js/app.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {

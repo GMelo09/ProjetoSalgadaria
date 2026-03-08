@@ -413,6 +413,7 @@ h1,h2,h3,h4,h5 {
   transition: all var(--transition);
   display: flex;
   flex-direction: column;
+  isolation: isolate;
 }
 .product-card:hover {
   transform: translateY(-6px);
@@ -1146,10 +1147,13 @@ h1,h2,h3,h4,h5 {
   background: var(--white);
   border-bottom: 1px solid var(--cream-dark);
   padding: 1rem 0;
-  position: sticky;
-  top: var(--nav-h);
+  position: relative;
   z-index: 100;
 }
+.filter-bar.is-stuck {
+  position: fixed;
+}
+
 .filter-bar .container {
   display: flex;
   gap: .6rem;
@@ -1215,3 +1219,72 @@ h1,h2,h3,h4,h5 {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--rose-blush); border-radius: 3px; }
+/* ============================================================
+   ADIÇÕES — Classes complementares v2
+   ============================================================ */
+
+/* Produto price unit */
+.product-price-unit { font-size:.75rem; color:var(--muted); font-family:var(--font-sans); font-weight:400; }
+
+/* How it works steps */
+.how-step { text-align:center; padding:1.5rem; }
+.how-step .how-icon { font-size:2.5rem; margin-bottom:1rem; }
+.how-step h5 { font-family:var(--font-serif); margin-bottom:.5rem; }
+.how-step p { color:var(--muted); font-size:.88rem; }
+
+/* Flavor price */
+.flavor-price { font-size:.82rem; color:var(--muted); margin-left:auto; }
+
+/* CTA section */
+.section-cta { background:linear-gradient(135deg,var(--rose-dark),var(--rose)); text-align:center; }
+.section-cta h2 { color:#fff; font-size:2.2rem; margin-bottom:1rem; }
+.section-cta p { color:rgba(255,255,255,.85); margin-bottom:2rem; }
+.btn-outline-hero { border:2px solid rgba(255,255,255,.6); color:#fff; background:transparent; }
+.btn-outline-hero:hover { background:rgba(255,255,255,.15); }
+
+/* Checkout form */
+.checkout-progress { background:var(--white); border-bottom:1px solid var(--cream-dark); padding:.75rem 0; }
+.checkout-steps { display:flex; align-items:center; gap:.5rem; font-size:.82rem; font-weight:600; }
+.checkout-steps .step { color:var(--muted); }
+.checkout-steps .step.active { color:var(--rose); }
+.checkout-steps .step.done { color:var(--success, #2e7d32); }
+.step-arrow { color:var(--muted); }
+.checkout-section-title { font-size:1.1rem; margin-bottom:1rem; }
+.checkout-info-box { margin-top:1rem; padding:.75rem; background:var(--cream); border-radius:var(--radius-sm); font-size:.78rem; color:var(--muted); line-height:1.8; }
+
+/* Auth page */
+.auth-back { display:flex; align-items:center; gap:.4rem; color:var(--muted); font-size:.82rem; margin-bottom:2rem; text-decoration:none; }
+.auth-back:hover { color:var(--rose); }
+.auth-switch { text-align:center; margin-top:1.5rem; font-size:.85rem; color:var(--muted); }
+.btn-link-text { background:none; border:none; color:var(--rose); font-weight:600; cursor:pointer; font-size:.85rem; padding:0; }
+.input-password { position:relative; }
+.btn-toggle-senha { position:absolute; right:.85rem; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--muted); cursor:pointer; }
+
+/* Cart */
+.cart-empty-actions { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; }
+.btn-clear-cart { background:none; border:none; color:var(--muted); font-size:.82rem; padding:.5rem; cursor:pointer; }
+.btn-clear-cart:hover { color:var(--rose); }
+
+/* Cart actions */
+.cart-actions { margin-top:1.5rem; display:flex; flex-direction:column; gap:.75rem; }
+
+/* Footer social */
+.footer-social { display:flex; gap:.75rem; margin-top:1rem; }
+.footer-social a { color:rgba(255,255,255,.5); font-size:1.2rem; transition:color .2s; }
+.footer-social a:hover { color:#fff; }
+.footer-horario { color:rgba(255,255,255,.4); font-size:.82rem; margin-top:.5rem; }
+
+/* Pedido confirmado */
+.badge-status { display:inline-block; padding:.25rem .7rem; border-radius:999px; font-size:.75rem; font-weight:700; }
+.status-pendente    { background:#FFF3CD; color:#856404; }
+.status-confirmado  { background:#D1ECF1; color:#0C5460; }
+.status-em_preparo  { background:#D4EDFF; color:#004085; }
+.status-saiu_entrega{ background:#E2E3E5; color:#383D41; }
+.status-entregue    { background:#D4EDDA; color:#155724; }
+.status-cancelado   { background:#F8D7DA; color:#721C24; }
+
+/* Spinner color */
+.spinner-border.text-rose { border-color:var(--rose); border-right-color:transparent; }
+
+/* Pedido detalhe */
+.pedido-detalhe { font-size:.9rem; }

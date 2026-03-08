@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/../includes/auth.php';
+sessionStart();
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -28,7 +32,23 @@
             <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
           </a>
         </li>
+        <?php if (!empty($_SESSION['usuario_nome'])): ?>
+        <li class="dropdown">
+          <a href="#" data-bs-toggle="dropdown" role="button">
+            <i class="bi bi-person-circle"></i> <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
+            <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <?php if (!empty($_SESSION['eh_admin'])): ?>
+            <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <?php endif; ?>
+            <li><a class="dropdown-item" href="../actions/sair.php"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+          </ul>
+        </li>
+        <?php else: ?>
         <li><a href="login.php"><i class="bi bi-person"></i> Entrar</a></li>
+        <?php endif; ?>
       </ul>
       <button class="navbar-toggler-main" id="navToggler" aria-label="Menu">
         <span></span><span></span><span></span>
@@ -159,6 +179,7 @@
 
 <div class="toast-container" id="toastContainer"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../js/app.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', renderCart);
@@ -203,7 +224,7 @@ function renderCart() {
       </tr>`;
   });
 
-  document.getElementById('cartBody').innerHTML     = rows;
+  document.getElementById('cartBody').innerHTML      = rows;
   document.getElementById('summaryCount').textContent = totalQty;
   document.getElementById('summaryTypes').textContent = items.length;
   document.getElementById('summaryTotal').textContent = fmtBRL(Cart.total());
@@ -214,15 +235,29 @@ function cartChangeQty(idx, delta) {
   Cart.setQty(idx, items[idx].quantidade + delta);
   renderCart();
 }
+
 function cartRemove(idx) {
   Cart.remove(idx);
   renderCart();
-  Toast.show('Item removido do carrinho.','warning');
+  Swal.fire({ toast:true, position:'top-end', icon:'warning', title:'Item removido do carrinho.', showConfirmButton:false, timer:2500, timerProgressBar:true });
 }
+
 function clearCart() {
-  if (!confirm('Deseja limpar todo o carrinho?')) return;
-  Cart.clear();
-  renderCart();
+  Swal.fire({
+    title: 'Limpar carrinho?',
+    text: 'Todos os itens serão removidos.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Sim, limpar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#e53935',
+  }).then(result => {
+    if (result.isConfirmed) {
+      Cart.clear();
+      renderCart();
+      Swal.fire({ toast:true, position:'top-end', icon:'success', title:'Carrinho limpo!', showConfirmButton:false, timer:2000, timerProgressBar:true });
+    }
+  });
 }
 </script>
 

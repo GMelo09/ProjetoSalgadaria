@@ -1,3 +1,13 @@
+<?php
+require_once __DIR__ . '/../includes/auth.php';
+sessionStart();
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../classes/Produto.php';
+
+$produtoObj = new Produto();
+$salgados   = $produtoObj->listarProdutos(1);
+$doces      = $produtoObj->listarProdutos(2);
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -28,7 +38,23 @@
             <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
           </a>
         </li>
+        <?php if (!empty($_SESSION['usuario_nome'])): ?>
+        <li class="dropdown">
+          <a href="#" data-bs-toggle="dropdown" role="button">
+            <i class="bi bi-person-circle"></i> <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
+            <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <?php if (!empty($_SESSION['eh_admin'])): ?>
+            <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <?php endif; ?>
+            <li><a class="dropdown-item" href="../actions/sair.php"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+          </ul>
+        </li>
+        <?php else: ?>
         <li><a href="login.php"><i class="bi bi-person"></i> Entrar</a></li>
+        <?php endif; ?>
       </ul>
       <button class="navbar-toggler-main" id="navToggler" aria-label="Menu">
         <span></span><span></span><span></span>
@@ -130,18 +156,7 @@
       </div>
       <div class="flavor-section">
         <h6><i class="bi bi-egg-fried"></i> Salgados</h6>
-        <?php
-        $salgados = [
-          ['id'=>1, 'nome'=>'Coxinha Clássica',    'preco'=>3.50],
-          ['id'=>2, 'nome'=>'Esfiha de Carne',     'preco'=>3.80],
-          ['id'=>3, 'nome'=>'Bolinha de Queijo',   'preco'=>3.20],
-          ['id'=>4, 'nome'=>'Risole de Camarão',   'preco'=>5.00],
-          ['id'=>5, 'nome'=>'Kibe Frito',          'preco'=>3.60],
-          ['id'=>6, 'nome'=>'Empada de Frango',    'preco'=>4.20],
-          ['id'=>7, 'nome'=>'Coxinha de Catupiry', 'preco'=>4.00],
-          ['id'=>8, 'nome'=>'Rissole de Palmito',  'preco'=>4.00],
-        ];
-        foreach ($salgados as $s): ?>
+        <?php foreach ($salgados as $s): ?>
         <div class="flavor-item">
           <input type="checkbox" class="flavor-check" id="fs<?= $s['id'] ?>"
                  value="<?= $s['id'] ?>" data-nome="<?= htmlspecialchars($s['nome']) ?>"
@@ -153,16 +168,7 @@
       </div>
       <div class="flavor-section">
         <h6><i class="bi bi-cup-hot"></i> Doces</h6>
-        <?php
-        $doces = [
-          ['id'=>20,'nome'=>'Brigadeiro Gourmet', 'preco'=>4.50],
-          ['id'=>21,'nome'=>'Beijinho de Coco',   'preco'=>4.00],
-          ['id'=>22,'nome'=>'Trufa de Morango',   'preco'=>5.50],
-          ['id'=>23,'nome'=>'Cajuzinho',          'preco'=>3.80],
-          ['id'=>24,'nome'=>'Olho de Sogra',      'preco'=>4.20],
-          ['id'=>25,'nome'=>'Palha Italiana',     'preco'=>3.50],
-        ];
-        foreach ($doces as $d): ?>
+        <?php foreach ($doces as $d): ?>
         <div class="flavor-item">
           <input type="checkbox" class="flavor-check" id="fd<?= $d['id'] ?>"
                  value="<?= $d['id'] ?>" data-nome="<?= htmlspecialchars($d['nome']) ?>"
@@ -223,6 +229,7 @@
 
 <div class="toast-container" id="toastContainer"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../js/app.js"></script>
 <script>
 let currentQtd = 0, currentMax = 0;
@@ -256,14 +263,17 @@ function updateFlavorCount() {
 
 function addPackageToCart() {
   const checked = document.querySelectorAll('.flavor-check:checked');
-  if (checked.length === 0) { Toast.show('Selecione ao menos um sabor!','warning'); return; }
+  if (checked.length === 0) {
+    Swal.fire({ toast:true, position:'top-end', icon:'warning', title:'Selecione ao menos um sabor!', showConfirmButton:false, timer:2500, timerProgressBar:true });
+    return;
+  }
   let nomes = [], precoTotal = 0;
   checked.forEach(c => { nomes.push(c.dataset.nome); precoTotal += parseFloat(c.dataset.preco); });
   const precoMedio = precoTotal / checked.length;
   const nome = `Pacote ${currentQtd}un (${nomes.join(', ')})`;
   Cart.add({ id: 'pacote-' + Date.now(), nome, preco: precoMedio, quantidade: currentQtd, tipo_pacote: currentQtd });
   closeModal();
-  Toast.show(`📦 Pacote de ${currentQtd} unidades adicionado!`, 'success');
+  Swal.fire({ toast:true, position:'top-end', icon:'success', title:`📦 Pacote de ${currentQtd} unidades adicionado!`, showConfirmButton:false, timer:2500, timerProgressBar:true });
 }
 </script>
 </body>
