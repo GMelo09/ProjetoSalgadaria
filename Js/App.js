@@ -1,128 +1,142 @@
-/* ============================================================
-   Doce & Salgado — app.js
-   Carrinho, toasts, navegação e utilitários
-   ============================================================ */
+/* Doce & Salgado - App.js */
 
-/* ── Carrinho ── */
 const Cart = {
-  KEY: 'ds_cart',
+  key: 'ds_cart',
 
   get() {
-    try { return JSON.parse(localStorage.getItem(this.KEY)) || []; }
-    catch { return []; }
+    try {
+      return JSON.parse(localStorage.getItem(this.key)) || [];
+    } catch {
+      return [];
+    }
   },
 
   save(items) {
-    localStorage.setItem(this.KEY, JSON.stringify(items));
-    this._updateBadge();
+    localStorage.setItem(this.key, JSON.stringify(items));
+    this.updateBadge();
   },
 
   add(product) {
     const items = this.get();
-    const idx   = items.findIndex(i =>
-      i.id === product.id && i.tipo_pacote === product.tipo_pacote
+    const exists = items.findIndex(item => 
+      item.id === product.id && item.tipo_pacote === product.tipo_pacote
     );
-    if (idx >= 0) {
-      items[idx].quantidade += product.quantidade;
+
+    if (exists >= 0) {
+      items[exists].quantidade += product.quantidade;
     } else {
       items.push(product);
+    }
+
+    this.save(items);
+  },
+
+  remove(index) {
+    const items = this.get();
+    items.splice(index, 1);
+    this.save(items);
+  },
+
+  setQty(index, qty) {
+    const items = this.get();
+    if (qty < 1) {
+      items.splice(index, 1);
+    } else {
+      items[index].quantidade = qty;
     }
     this.save(items);
   },
 
-  remove(idx) {
-    const items = this.get();
-    items.splice(idx, 1);
-    this.save(items);
-  },
-
-  setQty(idx, qty) {
-    const items = this.get();
-    if (qty <= 0) items.splice(idx, 1);
-    else          items[idx].quantidade = qty;
-    this.save(items);
-  },
-
   total() {
-    return this.get().reduce((s, i) => s + i.preco * i.quantidade, 0);
+    return this.get().reduce((total, item) => total + item.preco * item.quantidade, 0);
   },
 
   count() {
-    return this.get().reduce((s, i) => s + i.quantidade, 0);
+    return this.get().reduce((total, item) => total + item.quantidade, 0);
   },
 
   clear() {
-    localStorage.removeItem(this.KEY);
-    this._updateBadge();
+    localStorage.removeItem(this.key);
+    this.updateBadge();
   },
 
-  _updateBadge() {
-    const el = document.getElementById('cartBadge');
-    if (!el) return;
-    const n = this.count();
-    el.textContent    = n;
-    el.style.display  = n > 0 ? 'flex' : 'none';
+  updateBadge() {
+    const badge = document.getElementById('cartBadge');
+    if (!badge) return;
+
+    const qtd = this.count();
+    badge.textContent = qtd;
+    badge.style.display = qtd > 0 ? 'flex' : 'none';
   }
 };
 
-/* ── Formata moeda BRL ── */
-function fmtBRL(v) {
-  return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+// Formata preço
+function fmtBRL(valor) {
+  return 'R$ ' + Number(valor).toFixed(2).replace('.', ',');
 }
 
-/* ── Controle de quantidade ── */
-function changeQty(inputId, delta) {
-  const input = document.getElementById(inputId);
+// Aumenta/diminui quantidade
+function changeQty(id, delta) {
+  const input = document.getElementById(id);
   if (!input) return;
-  let val = parseInt(input.value) + delta;
-  if (val < 1) val = 1;
-  input.value = val;
+
+  let novo = parseInt(input.value) + delta;
+  if (novo < 1) novo = 1;
+  input.value = novo;
 }
 
-/* ── Adicionar ao carrinho ── */
+// Adicionar ao carrinho
 function addToCart(id, nome, preco, inputId) {
-  const qty = parseInt(document.getElementById(inputId)?.value) || 1;
-  Cart.add({ id, nome, preco, quantidade: qty, tipo_pacote: null });
-  document.getElementById(inputId).value = 1;
+  const input = document.getElementById(inputId);
+  const quantidade = input ? parseInt(input.value) || 1 : 1;
 
+  Cart.add({ id, nome, preco, quantidade, tipo_pacote: null });
+
+  // volta o input pra 1
+  if (input) input.value = 1;
+
+  // toast bonitinho
   Swal.fire({
     toast: true,
     position: 'top-end',
     icon: 'success',
     title: `<strong>${nome}</strong>`,
-    text: `${qty}x adicionado ao carrinho!`,
+    text: `${quantidade}x no carrinho!`,
     showConfirmButton: false,
     timer: 2500,
     timerProgressBar: true,
-    showClass: { popup: 'swal2-show' },
-    hideClass: { popup: 'swal2-hide' },
     customClass: { popup: 'swal-cart-toast' }
   });
 }
 
-/* ── Inicialização ── */
+// =============================================
+// Inicialização quando a página carrega
+// =============================================
 document.addEventListener('DOMContentLoaded', () => {
-  Cart._updateBadge();
 
-  /* Mobile nav toggle */
-  const toggler  = document.getElementById('navToggler');
+  Cart.updateBadge();
+
+  // Menu mobile
+  const toggler = document.getElementById('navToggler');
   const navLinks = document.getElementById('navLinks');
+
   if (toggler && navLinks) {
     toggler.addEventListener('click', () => navLinks.classList.toggle('open'));
+
+    // fecha menu ao clicar em qualquer link
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      link.addEventListener('click', () => navLinks.classList.remove('open'));
+    });
   }
 
-  /* Fecha menu mobile ao clicar em link */
-  document.querySelectorAll('.nav-links a').forEach(a => {
-    a.addEventListener('click', () => navLinks?.classList.remove('open'));
-  });
-
-  /* Toggle visual de pagamento */
-  document.querySelectorAll('.payment-option').forEach(opt => {
-    opt.addEventListener('click', () => {
+  // Seleção de forma de pagamento
+  document.querySelectorAll('.payment-option').forEach(option => {
+    option.addEventListener('click', () => {
       document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
-      opt.classList.add('selected');
-      const input = opt.querySelector('input');
-      if (input) input.checked = true;
+      option.classList.add('selected');
+
+      const radio = option.querySelector('input[type="radio"]');
+      if (radio) radio.checked = true;
     });
   });
 });

@@ -6,7 +6,7 @@ require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 requireAdmin(); // Bloqueia acesso a não-admins
 
-require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../classes/Pedido.php';
 require_once __DIR__ . '/../classes/Produto.php';
 require_once __DIR__ . '/../classes/Usuario.php';

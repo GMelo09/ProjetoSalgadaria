@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 sessionStart();
 requireAdmin();
 
-require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../classes/Pedido.php';
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
