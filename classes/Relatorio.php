@@ -74,7 +74,7 @@ class Relatorio
             FROM pedidos
             WHERE status <> 'cancelado'
               AND criado_em >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-            GROUP BY DATE_FORMAT(criado_em, '%Y-%m')
+            GROUP BY DATE_FORMAT(criado_em, '%Y-%m'), DATE_FORMAT(criado_em, '%m/%Y')
             ORDER BY mes ASC
         ");
         $st->execute();
