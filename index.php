@@ -1,12 +1,12 @@
 <?php
-require_once __DIR__ . '/includes/auth.php';
-sessionStart();
-require_once __DIR__ . '/config/config.php';
-require_once __DIR__ . '/classes/Produto.php';
+// require_once __DIR__ . '/includes/auth.php';
+// sessionStart();
+// require_once __DIR__ . '/config/config.php';
+// require_once __DIR__ . '/classes/Produto.php';
 
-$produtoObj = new Produto();
-$salgados   = array_slice($produtoObj->listarProdutos(1), 0, 4);
-$doces      = array_slice($produtoObj->listarProdutos(2), 0, 4);
+// $produtoObj = new Produto();
+// $salgados   = array_slice($produtoObj->listarProdutos(1), 0, 4);
+// $doces      = array_slice($produtoObj->listarProdutos(2), 0, 4);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">

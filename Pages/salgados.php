@@ -1,11 +1,11 @@
 <?php
-require_once __DIR__ . '/../includes/auth.php';
-sessionStart();
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../classes/Produto.php';
+// require_once __DIR__ . '/../includes/auth.php';
+// sessionStart();
+// require_once __DIR__ . '/../config/config.php';
+// require_once __DIR__ . '/../classes/Produto.php';
 
-$produtoObj = new Produto();
-$produtos   = $produtoObj->listarProdutos(1); // categoria_id 1 = Salgados
+// $produtoObj = new Produto();
+// $produtos   = $produtoObj->listarProdutos(1); // categoria_id 1 = Salgados
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
