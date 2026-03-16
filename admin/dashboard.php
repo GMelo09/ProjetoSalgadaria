@@ -1,50 +1,6 @@
 <?php
-/* =============================================================
- *  admin/dashboard.php — Painel Administrativo
- * ============================================================= */
-require_once __DIR__ . '/../includes/auth.php';
-sessionStart();
-requireAdmin(); // Bloqueia acesso a não-admins
+session_start();
 
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../classes/Pedido.php';
-require_once __DIR__ . '/../classes/Produto.php';
-require_once __DIR__ . '/../classes/Usuario.php';
-require_once __DIR__ . '/../classes/Relatorio.php';
-
-/* =============================================================
- *  DADOS DO DASHBOARD
- * ============================================================= */
-$relatorioObj = new Relatorio();
-$resumo       = $relatorioObj->resumoGeral();
-$faturMes     = $relatorioObj->faturamentoPorMes();
-$topProdutos  = $relatorioObj->produtosMaisVendidos(5);
-$fatDiario    = $relatorioObj->faturamentoPorPeriodo(30);
-
-$pedidoObj    = new Pedido();
-$pedidosRec   = $pedidoObj->listarPedidos('', 10);
-$contStatus   = $pedidoObj->contarPorStatus();
-
-$produtoObj   = new Produto();
-$produtos     = $produtoObj->listarTodos();
-$categorias   = $produtoObj->listarCategorias();
-
-$usuarioObj   = new Usuario();
-$clientes     = $usuarioObj->listarUsuarios();
-
-/* Flash de ação anterior */
-$flash = getFlash();
-
-/* Status label helper */
-$statusLabels = Pedido::STATUS;
-$statusBadge  = [
-    'pendente'     => 'badge-warning',
-    'confirmado'   => 'badge-info',
-    'em_preparo'   => 'badge-primary',
-    'saiu_entrega' => 'badge-secondary',
-    'entregue'     => 'badge-success',
-    'cancelado'    => 'badge-danger',
-];
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
