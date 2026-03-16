@@ -3,16 +3,17 @@ require_once('banco_class.php');
 
 class Usuario
 {
+    public $id;
     public $nome;
     public $email;
     public $senha;
     public $telefone;
     public $id_tipo;
 
-    public function Criar()
+    public function Cadastrar()
     {
         $sql = "INSERT INTO usuarios (nome, email, senha, telefone, id_tipo)
-                VALUES (?, ?, ?, ?, ?)";
+                VALUES (?, ?, ?, ?, 2)";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([
@@ -63,18 +64,18 @@ class Usuario
         return $comando->rowCount();
     }
 
-    public function Login($email, $senha)
+     public function Logar()
     {
-        $sql = "SELECT u.*, t.tipo
-                FROM usuarios u
-                INNER JOIN usuario_tipo t ON u.id_tipo = t.id
-                WHERE u.email = ? AND u.senha = ?";
+        $sql = "SELECT * FROM usuarios WHERE email = ? AND senha = ?";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
-        $comando->execute([$email, hash('sha256', $senha)]);
-        $usuario = $comando->fetch(PDO::FETCH_ASSOC);
+        $comando->execute([
+            $this->email,
+            hash('sha256', $this->senha)
+        ]);
+        $resultado = $comando->fetchAll(PDO::FETCH_ASSOC);
         Banco::desconectar();
-        return $usuario;
+        return $resultado;
     }
 
     public function BuscarPorId($id_usuario)
