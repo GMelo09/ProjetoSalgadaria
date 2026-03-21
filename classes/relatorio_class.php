@@ -41,23 +41,24 @@ class Relatorio
 
     public function ProdutosMaisVendidos($limite = 10)
     {
+        $limite = (int) $limite;
         $sql = "SELECT 
-                    pi.nome_produto,
-                    pr.emoji,
-                    c.nome AS categoria,
-                    SUM(pi.quantidade) AS total_vendido,
-                    SUM(pi.quantidade * pi.preco_unitario) AS receita_total
-                FROM pedido_itens pi
-                LEFT JOIN produtos pr ON pi.produto_id = pr.id
-                LEFT JOIN categorias c ON pr.categoria_id = c.id
-                INNER JOIN pedidos p ON pi.pedido_id = p.id
-                WHERE p.status != 'cancelado'
-                GROUP BY pi.produto_id, pi.nome_produto
-                ORDER BY total_vendido DESC
-                LIMIT ?";
+                pi.nome_produto,
+                pr.emoji,
+                c.nome AS categoria,
+                SUM(pi.quantidade) AS total_vendido,
+                SUM(pi.quantidade * pi.preco_unitario) AS receita_total
+            FROM pedido_itens pi
+            LEFT JOIN produtos pr ON pi.produto_id = pr.id
+            LEFT JOIN categorias c ON pr.categoria_id = c.id
+            INNER JOIN pedidos p ON pi.pedido_id = p.id
+            WHERE p.status != 'cancelado'
+            GROUP BY pi.produto_id, pi.nome_produto
+            ORDER BY total_vendido DESC
+            LIMIT $limite";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
-        $comando->execute([$limite]);
+        $comando->execute();
         $resultado = $comando->fetchAll(PDO::FETCH_ASSOC);
         Banco::desconectar();
         return $resultado;
@@ -139,4 +140,3 @@ class Relatorio
         return $resultado;
     }
 }
-

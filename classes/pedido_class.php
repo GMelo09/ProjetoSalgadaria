@@ -55,7 +55,6 @@ class Pedido
             $banco->commit();
             Banco::desconectar();
             return $pedido_id;
-
         } catch (Exception $e) {
             $banco->rollBack();
             Banco::desconectar();
@@ -200,5 +199,32 @@ class Pedido
         $resultado = $comando->fetch(PDO::FETCH_ASSOC);
         Banco::desconectar();
         return $resultado['ultimo_pedido'] ?? null;
+    }
+    public function ListarRecentes($limite = 10)
+    {
+        $limite = (int) $limite;
+        $sql = "SELECT p.*, u.nome AS nome
+            FROM pedidos p
+            LEFT JOIN usuarios u ON p.usuario_id = u.id
+            ORDER BY p.criado_em DESC LIMIT $limite";
+        $banco = Banco::conectar();
+        $comando = $banco->prepare($sql);
+        $comando->execute();
+        $pedidos = $comando->fetchAll(PDO::FETCH_ASSOC);
+        Banco::desconectar();
+        return $pedidos;
+    }
+    public function ListarTodos()
+    {
+        $sql = "SELECT p.*, u.nome AS nome
+            FROM pedidos p
+            LEFT JOIN usuarios u ON p.usuario_id = u.id
+            ORDER BY p.criado_em DESC";
+        $banco = Banco::conectar();
+        $comando = $banco->prepare($sql);
+        $comando->execute();
+        $pedidos = $comando->fetchAll(PDO::FETCH_ASSOC);
+        Banco::desconectar();
+        return $pedidos;
     }
 }

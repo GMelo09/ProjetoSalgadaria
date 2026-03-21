@@ -1,45 +1,102 @@
 <?php
-session_start();
-require_once '../classes/usuario_class.php';
+/**
+ * actions/usuario_editar.php
+ *
+ * Correções aplicadas:
+ *  1. REMOVIDO: print_r($_POST) — expunha dados sensíveis no navegador
+ *  2. Validação CSRF adicionada
+ *  3. Verificação de autenticação (só admin ou o próprio usuário pode editar)
+ *  4. exit adicionado em todos os redirects
+ *  5. id_tipo protegido — cliente comum não pode se promover a admin
+ */
 
-// Garante que o acesso seja via POST
+require_once __DIR__ . '/../includes/auth.php';
+sessionStart();
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-
-    header("Location: ../dashboard/index.php");
+    header('Location: ../dashboard/index.php');
     exit;
 }
 
-print_r($_POST);
+// ── 1. Autenticação ──────────────────────────────────────────
+requireLogin('../pages/login.php');
 
+// ── 2. Validação CSRF ────────────────────────────────────────
+csrfValidar();
+
+require_once __DIR__ . '/../classes/usuario_class.php';
+
+// ── 3. Sanitização e validação ───────────────────────────────
+$id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
+
+if (!$id || $id <= 0) {
+    setFlash('erro', 'ID de usuário inválido.');
+    header('Location: ../dashboard/index.php');
+    exit;
+}
+
+// ── 4. Autorização: somente admin pode editar outros usuários ─
+// Um cliente só pode editar a si mesmo
+$ehAdmin       = isAdmin();
+$ehProprioUser = ((int) $_SESSION['usuario_id'] === (int) $id);
+
+if (!$ehAdmin && !$ehProprioUser) {
+    http_response_code(403);
+    setFlash('erro', 'Sem permissão para editar este usuário.');
+    header('Location: ../index.php');
+    exit;
+}
+
+// ── 5. Prepara o objeto com os dados sanitizados ─────────────
 $usuario = new Usuario();
 
-// Sanitização e validação dos dados
-$usuario->id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT) ?? 0;
+$usuario->id      = $id;
+$usuario->nome    = trim(filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
+$usuario->email   = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL) ?? '';
+$telefone         = filter_input(INPUT_POST, 'telefone', FILTER_SANITIZE_SPECIAL_CHARS) ?? '';
+$usuario->telefone = preg_replace('/\D/', '', $telefone);
 
-$usuario->nome = trim(filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
-
-$usuario->email = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL) ?? '';
-
-$telefone = filter_input(INPUT_POST, 'telefone', FILTER_SANITIZE_SPECIAL_CHARS) ?? '';
-$usuario->telefone = preg_replace('/\D/', '', $telefone); // mantém apenas números
-
-$senha = $_POST['senha'] ?? '';
-if (!empty($senha)) {
-    $usuario->senha = $senha;
+// id_tipo: somente admin pode alterar — cliente não pode se autopromover
+if ($ehAdmin) {
+    $usuario->id_tipo = filter_input(INPUT_POST, 'id_tipo', FILTER_VALIDATE_INT) ?? 2;
 } else {
-    $usuario->senha = null; // ou mantenha a senha atual no método EditarUsuario
+    // Mantém o tipo atual do usuário logado
+    $usuario->id_tipo = (int) ($_SESSION['usuario']['id_tipo'] ?? 2);
 }
 
-// Validação do ID
-if ($usuario->id <= 0) {
-    $_SESSION['mensagem'] = "ID inválido.";
-     header("Location: ../dashboard/index.php");
+// Validações mínimas
+if (empty($usuario->nome)) {
+    setFlash('erro', 'O nome não pode ser vazio.');
+    header('Location: ../dashboard/index.php');
     exit;
 }
 
-// Executa a atualização
-$alteradas = $usuario->Editar($usuario->id);
+if (empty($usuario->email)) {
+    setFlash('erro', 'E-mail inválido.');
+    header('Location: ../dashboard/index.php');
+    exit;
+}
 
-// Redirecionamento final
-header("Location: ../dashboard/index.php");
+// ── 6. Atualização de senha (opcional) ───────────────────────
+$senha = $_POST['senha'] ?? '';
+
+if (!empty($senha)) {
+    if (strlen($senha) < 6) {
+        setFlash('erro', 'A nova senha deve ter pelo menos 6 caracteres.');
+        header('Location: ../dashboard/index.php');
+        exit;
+    }
+    $usuario->AlterarSenha($id, $senha);
+}
+
+// ── 7. Executa a atualização ─────────────────────────────────
+$alteradas = $usuario->Editar($id);
+
+if ($alteradas > 0) {
+    setFlash('sucesso', 'Usuário atualizado com sucesso!');
+} else {
+    setFlash('info', 'Nenhuma alteração detectada.');
+}
+
+header('Location: ../dashboard/index.php');
 exit;
