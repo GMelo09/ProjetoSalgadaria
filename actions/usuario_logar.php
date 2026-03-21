@@ -5,27 +5,27 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $usuario->email = strip_tags($_POST['email']);
     $usuario->senha = strip_tags($_POST['senha']);
 
-
     if(empty($usuario->email)){
-       header('Location: ../login.php?err=email_vazio');
+       header('Location: ../Pages/login.php?err=email_vazio');
+       exit();
     }
     else if(empty($usuario->senha)){
-       header('Location: ../login.php?err=senha_vazia');
+       header('Location: ../Pages/login.php?err=senha_vazia');
+       exit();
     }
     else{
         $resultado = $usuario->Logar();
-        if(sizeof($resultado) == 0 ){
-            header('Location: ../login.php?err=usuario_login_falha');
-            // exit();
-        //     print_r('Usuário ou senha inválidos.');
+        if(sizeof($resultado) == 0){
+            header('Location: ../Pages/login.php?erro=credenciais');
+            exit();
         }
         else{
-            //Iniciar sessão de 
             session_start();
-            //criar sessão com os dados vindo do banco de dados
-            $_SESSION['usuario'] = $resultado[0];
-            //redirecionar para a área padina inicial
-            header('Location: ../index.php'); // redirecionar para o conteudo principal
+            $_SESSION['usuario']      = $resultado[0];
+            $_SESSION['usuario_id']   = $resultado[0]['id'];
+            $_SESSION['usuario_nome'] = $resultado[0]['nome'];
+            $_SESSION['eh_admin']     = ($resultado[0]['id_tipo'] == 1) ? 1 : 0;
+            header('Location: ../index.php');
             exit();
         }
     }

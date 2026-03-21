@@ -1,11 +1,10 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../classes/produto_class.php';
 sessionStart();
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../classes/Produto.php';
 
 $produtoObj = new Produto();
-$produtos   = $produtoObj->listarProdutos(2); // categoria_id 2 = Doces
+$produtos   = $produtoObj->ListarPorCategoria(2);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -48,7 +47,7 @@ $produtos   = $produtoObj->listarProdutos(2); // categoria_id 2 = Doces
             <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
             <li><hr class="dropdown-divider"></li>
             <?php endif; ?>
-            <li><a class="dropdown-item" href="../actions/sair.php"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+            <li><a class="dropdown-item" href="login.php?sair=1"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
           </ul>
         </li>
         <?php else: ?>

@@ -1,12 +1,11 @@
 <?php
-// require_once __DIR__ . '/../includes/auth.php';
-// sessionStart();
-// require_once __DIR__ . '/../config/db.php';
-// require_once __DIR__ . '/../classes/Produto.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../classes/produto_class.php';
+sessionStart();
 
-// $produtoObj = new Produto();
-// $salgados   = $produtoObj->listarProdutos(1);
-// $doces      = $produtoObj->listarProdutos(2);
+$produtoObj = new Produto();
+$salgados   = $produtoObj->ListarPorCategoria(1);
+$doces      = $produtoObj->ListarPorCategoria(2);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -49,7 +48,7 @@
             <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
             <li><hr class="dropdown-divider"></li>
             <?php endif; ?>
-            <li><a class="dropdown-item" href="../actions/sair.php"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+            <li><a class="dropdown-item" href="login.php?sair=1"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
           </ul>
         </li>
         <?php else: ?>

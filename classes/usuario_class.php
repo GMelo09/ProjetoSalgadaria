@@ -17,11 +17,10 @@ class Usuario
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([
-            $this->nome,
-            $this->email,
-            hash('sha256', $this->senha),
-            $this->telefone,
-            $this->id_tipo,
+        $this->nome,
+        $this->email,
+        hash('sha256', $this->senha),
+        $this->telefone,
         ]);
         $id = $banco->lastInsertId();
         Banco::desconectar();

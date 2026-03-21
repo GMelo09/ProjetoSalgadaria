@@ -43,7 +43,7 @@ sessionStart();
             <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
             <li><hr class="dropdown-divider"></li>
             <?php endif; ?>
-            <li><a class="dropdown-item" href="../actions/sair.php"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+            <li><a class="dropdown-item" href="login.php?sair=1"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
           </ul>
         </li>
         <?php else: ?>
