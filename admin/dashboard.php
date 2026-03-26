@@ -13,6 +13,9 @@ $produtoObj   = new Produto();
 $usuarioObj   = new Usuario();
 $relatorioObj = new Relatorio();
 $categoriaObj = new Categoria();
+require_once __DIR__ . '/../classes/pacote_class.php';
+$pacoteObj    = new Pacote();
+$pacotes      = $pacoteObj->ListarTodos() ?? [];
 
 $pedidosRec   = $pedidoObj->ListarRecentes(10) ?? [];
 $todosPedidos = $pedidoObj->ListarTodos() ?? [];
@@ -21,13 +24,94 @@ $clientes    = $usuarioObj->ListarTodos() ?? [];
 $categorias  = $categoriaObj->ListarTodas() ?? [];
 $topProdutos = $relatorioObj->ProdutosMaisVendidos(5) ?? [];
 $fatDiario   = $relatorioObj->FaturamentoPorDia(date('Y-m-01'), date('Y-m-d')) ?? [];
-$faturMes    = $relatorioObj->FaturamentoPorDia(date('Y-01-01'), date('Y-12-31')) ?? [];
+$faturMes    = $relatorioObj->FaturamentoPorMes(date('Y-01-01'), date('Y-12-31')) ?? []; // =============================================================
+//  Cole este bloco no topo do dashboard/index.php,
+//  logo após as instâncias das classes ($pedidoObj, etc.)
+//  e ANTES do array $resumo.
+// =============================================================
+
+// ── Período selecionado via GET ───────────────────────────────
+$periodoSelecionado = $_GET['periodo'] ?? 'mes';
+
+$periodos = [
+  'semana'    => ['label' => 'Semanal',   'inicio' => date('Y-m-d', strtotime('-7 days')),   'fim' => date('Y-m-d')],
+  'mes'       => ['label' => 'Mensal',    'inicio' => date('Y-m-01'),                         'fim' => date('Y-m-d')],
+  'trimestre' => ['label' => 'Semestral', 'inicio' => date('Y-m-d', strtotime('-6 months')), 'fim' => date('Y-m-d')],
+  'ano'       => ['label' => 'Anual',     'inicio' => date('Y-01-01'),                        'fim' => date('Y-12-31')],
+];
+
+if (!isset($periodos[$periodoSelecionado])) {
+  $periodoSelecionado = 'mes';
+}
+
+$periodoConfig = $periodos[$periodoSelecionado];
+$nomePeriodo   = $periodoConfig['label'];
+$dataInicio    = $periodoConfig['inicio'];
+$dataFim       = $periodoConfig['fim'];
+
+// ── Dados do período selecionado ─────────────────────────────
+$fatPeriodo = $relatorioObj->FaturamentoPorPeriodo($dataInicio, $dataFim);
+
+// Clientes novos no período
+$banco   = Banco::conectar();
+$cmd     = $banco->prepare("SELECT COUNT(*) AS total FROM usuarios WHERE DATE(criado_em) BETWEEN ? AND ? AND id_tipo = 2");
+$cmd->execute([$dataInicio, $dataFim]);
+$clientesNovos = (int) $cmd->fetch(PDO::FETCH_ASSOC)['total'];
+Banco::desconectar();
+
+$_totalPedidos = (int)($fatPeriodo['total_pedidos'] ?? 0);
+$_totalReceita = (float)($fatPeriodo['faturamento_total'] ?? 0);
+$_ticketMedio  = $_totalPedidos > 0 ? $_totalReceita / $_totalPedidos : 0;
+$dadosPeriodo = [
+  'receita'       => number_format($_totalReceita, 2, ',', '.'),
+  'atendimentos'  => $_totalPedidos,
+  'ticket_medio'  => number_format($_ticketMedio, 2, ',', '.'),
+  'clientesNovos' => $clientesNovos,
+];
+
+// ── Resumo dos últimos 6 meses com variação ──────────────────
+$resumoMeses = [];
+$receitaAnterior = null;
+
+for ($i = 5; $i >= 0; $i--) {
+  $mesInicio = date('Y-m-01', strtotime("-{$i} months"));
+  $mesFim    = date('Y-m-t',  strtotime("-{$i} months"));
+  $mesLabel = date('M/Y', strtotime($mesInicio));
+  $fat = $relatorioObj->FaturamentoPorPeriodo($mesInicio, $mesFim);
+  $receita = (float)($fat['faturamento_total'] ?? 0);
+  $pedidos = (int)($fat['total_pedidos'] ?? 0);
+
+  // Variação em relação ao mês anterior
+  $variacao = 0;
+  $variacaoFormatada = '—';
+  if ($receitaAnterior !== null && $receitaAnterior > 0) {
+    $variacao = (($receita - $receitaAnterior) / $receitaAnterior) * 100;
+    $sinal    = $variacao >= 0 ? '+' : '';
+    $variacaoFormatada = $sinal . number_format($variacao, 1) . '%';
+  } elseif ($receitaAnterior === 0 && $receita > 0) {
+    $variacaoFormatada = '+100%';
+    $variacao = 100;
+  }
+
+  $resumoMeses[] = [
+    'mes'               => ucfirst($mesLabel),
+    'receita'           => 'R$ ' . number_format($receita, 2, ',', '.'),
+    'atendimentos'      => $pedidos,
+    'variacao'          => $variacao,
+    'variacaoFormatada' => $variacaoFormatada,
+  ];
+
+  $receitaAnterior = $receita;
+}
+
+// ResumoHoje() chamado UMA vez e resultado reutilizado (era 3 queries idênticas)
+$resumoHoje = $relatorioObj->ResumoHoje();
 
 $resumo = [
-  'faturamento_hoje'  => $relatorioObj->ResumoHoje()['faturamento'] ?? 0,
+  'faturamento_hoje'  => $resumoHoje['faturamento']    ?? 0,
   'faturamento_mes'   => $relatorioObj->FaturamentoPorPeriodo(date('Y-m-01'), date('Y-m-d'))['faturamento_total'] ?? 0,
-  'pedidos_hoje'      => $relatorioObj->ResumoHoje()['total_pedidos'] ?? 0,
-  'pedidos_pendentes' => $relatorioObj->ResumoHoje()['pendentes'] ?? 0,
+  'pedidos_hoje'      => $resumoHoje['total_pedidos']  ?? 0,
+  'pedidos_pendentes' => $resumoHoje['pendentes']      ?? 0,
   'total_clientes'    => count($clientes),
   'total_produtos'    => count($produtos),
 ];
@@ -51,7 +135,8 @@ foreach ($statusLabels as $key => $_) {
   $contStatus[$key] = count(array_filter($todosPedidos, fn($p) => $p['status'] === $key));
 }
 
-$flash = null;
+$flash = getFlash(); // lê e limpa a flash message da sessão
+
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -108,6 +193,11 @@ $flash = null;
         <i class="bi bi-people"></i> <span>Clientes</span>
       </a>
 
+      <div class="sidebar-section">CADASTROS</div>
+      <a href="#secPacotes" class="sidebar-link" onclick="showSection('secPacotes',this)">
+        <i class="bi bi-box-seam"></i> <span>Pacotes</span>
+      </a>
+
       <div class="sidebar-section">FINANCEIRO</div>
       <a href="#secRelatorios" class="sidebar-link" onclick="showSection('secRelatorios',this)">
         <i class="bi bi-graph-up-arrow"></i> <span>Relatórios</span>
@@ -118,9 +208,13 @@ $flash = null;
       <a href="../index.php" class="sidebar-link">
         <i class="bi bi-globe2"></i> <span>Ver Site</span>
       </a>
-      <a href="../Pages/login.php?sair=1" class="sidebar-link sidebar-link-danger" id="btnSair">
-        <i class="bi bi-box-arrow-right"></i> <span>Sair</span>
-      </a>
+      <form action="../actions/logout.php" method="POST" style="margin:0;">
+        <?= csrfField() ?>
+        <button type="submit" class="sidebar-link sidebar-link-danger" id="btnSair"
+          style="background:none;border:none;width:100%;text-align:left;cursor:pointer;">
+          <i class="bi bi-box-arrow-right"></i> <span>Sair</span>
+        </button>
+      </form>
     </div>
   </aside>
 
@@ -220,14 +314,52 @@ $flash = null;
       </div>
 
       <!-- Gráficos -->
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h5>Faturamento — Últimos 6 Meses</h5>
-          <canvas id="chartFaturamento" height="80"></canvas>
-        </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.75rem;">
         <div class="chart-card">
           <h5>Top 5 Produtos Mais Vendidos</h5>
-          <canvas id="chartProdutos" height="80"></canvas>
+          <div style="position:relative;height:220px;">
+            <canvas id="chartProdutos"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h5>Distribuição de Pedidos por Status</h5>
+          <?php $totalPed = array_sum($contStatus); ?>
+          <?php if ($totalPed > 0): ?>
+            <div style="display:flex;align-items:center;gap:1.25rem;">
+              <div style="position:relative;height:200px;width:200px;flex-shrink:0;">
+                <canvas id="chartStatus"></canvas>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:.5rem;">
+                <?php
+                $statusColors = [
+                  'pendente'   => ['#FB8C00','⏳'],
+                  'confirmado' => ['#1E88E5','✅'],
+                  'producao'   => ['#C2185B','🔧'],
+                  'entregue'   => ['#43A047','📦'],
+                  'cancelado'  => ['#E53935','✖'],
+                ];
+                foreach ($contStatus as $key => $cnt):
+                  $pct = $totalPed > 0 ? round($cnt / $totalPed * 100) : 0;
+                  [$cor, $emoji] = $statusColors[$key];
+                ?>
+                <div style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;">
+                  <span style="width:10px;height:10px;border-radius:50%;background:<?= $cor ?>;flex-shrink:0;"></span>
+                  <span style="flex:1;color:var(--muted);"><?= $statusLabels[$key] ?></span>
+                  <span style="font-weight:700;color:var(--dark);"><?= $cnt ?></span>
+                  <span style="color:var(--muted);font-size:.72rem;">(<?= $pct ?>%)</span>
+                </div>
+                <?php endforeach; ?>
+                <div style="margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--cream);font-size:.78rem;color:var(--muted);">
+                  Total: <strong style="color:var(--dark);"><?= $totalPed ?> pedidos</strong>
+                </div>
+              </div>
+            </div>
+          <?php else: ?>
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--muted);gap:.5rem;">
+              <i class="bi bi-inbox" style="font-size:2rem;"></i>
+              <span style="font-size:.85rem;">Nenhum pedido registrado ainda</span>
+            </div>
+          <?php endif; ?>
         </div>
       </div>
 
@@ -428,7 +560,7 @@ $flash = null;
                   </td>
                   <td><strong style="color:var(--rose);">R$ <?= number_format((float)$prod['preco'], 2, ',', '.') ?></strong></td>
                   <td>
-                    <?php if ($prod['ativo']): ?>
+                    <?php if ($prod['ativo'] ?? 1): ?>
                       <span class="badge-status badge-success">Ativo</span>
                     <?php else: ?>
                       <span class="badge-status badge-danger">Inativo</span>
@@ -463,6 +595,9 @@ $flash = null;
           <h2><i class="bi bi-people" style="color:var(--rose);font-size:1.3rem;"></i> Clientes Cadastrados</h2>
           <p class="section-subtitle">Gerencie os clientes da plataforma</p>
         </div>
+        <button class="btn btn-primary" onclick="abrirModalNovoUsuario()">
+          <i class="bi bi-person-plus"></i> Novo Usuário
+        </button>
       </div>
       <div class="admin-card">
         <div class="table-responsive">
@@ -481,7 +616,7 @@ $flash = null;
             </thead>
             <tbody>
               <?php foreach ($clientes as $cli): ?>
-                <?php if ($cli['eh_admin']) continue; ?>
+                <?php if ((int)($cli['id_tipo'] ?? 0) === 1) continue; ?>
                 <tr>
                   <td><span style="color:var(--muted);font-size:.8rem;"><?= (int)$cli['id'] ?></span></td>
                   <td>
@@ -496,22 +631,22 @@ $flash = null;
                   <td style="font-size:.82rem;"><?= htmlspecialchars($cli['telefone'] ?? '—') ?></td>
                   <td>
                     <span style="background:var(--cream);padding:.2rem .65rem;border-radius:50px;font-size:.78rem;font-weight:700;">
-                      <?= (int)$cli['total_pedidos'] ?>
+                      <?= (int)($cli['total_pedidos'] ?? 0) ?>
                     </span>
                   </td>
                   <td style="font-size:.82rem;color:var(--muted);"><?= date('d/m/Y', strtotime($cli['criado_em'])) ?></td>
                   <td>
-                    <?php if ($cli['bloqueado']): ?>
+                    <?php if ($cli['bloqueado'] ?? 0): ?>
                       <span class="badge-status badge-danger">Bloqueado</span>
                     <?php else: ?>
                       <span class="badge-status badge-success">Ativo</span>
                     <?php endif; ?>
                   </td>
                   <td>
-                    <button class="btn btn-xs <?= $cli['bloqueado'] ? 'btn-success' : 'btn-danger' ?>"
-                      onclick="alterarBloqueioCliente(<?= (int)$cli['id'] ?>, <?= $cli['bloqueado'] ? 0 : 1 ?>, '<?= addslashes(htmlspecialchars($cli['nome'])) ?>')">
-                      <i class="bi bi-<?= $cli['bloqueado'] ? 'unlock' : 'lock' ?>"></i>
-                      <?= $cli['bloqueado'] ? 'Desbloquear' : 'Bloquear' ?>
+                    <button class="btn btn-xs <?= ($cli['bloqueado'] ?? 0) ? 'btn-success' : 'btn-danger' ?>"
+                      onclick="alterarBloqueioCliente(<?= (int)$cli['id'] ?>, <?= ($cli['bloqueado'] ?? 0) ? 0 : 1 ?>, <?= htmlspecialchars(json_encode($cli['nome']), ENT_QUOTES) ?>)">
+                      <i class="bi bi-<?= ($cli['bloqueado'] ?? 0) ? 'unlock' : 'lock' ?>"></i>
+                      <?= ($cli['bloqueado'] ?? 0) ? 'Desbloquear' : 'Bloquear' ?>
                     </button>
                   </td>
                 </tr>
@@ -523,36 +658,74 @@ $flash = null;
     </section>
 
     <!-- ══════════════════════════════════════
-       SEÇÃO: RELATÓRIOS
-  ══════════════════════════════════════ -->
+     SEÇÃO: RELATÓRIOS
+     Substitui a <section id="secRelatorios"> atual no dashboard.
+══════════════════════════════════════ -->
     <section class="admin-section" id="secRelatorios">
       <div class="admin-section-header">
         <div>
           <h2><i class="bi bi-graph-up-arrow" style="color:var(--rose);font-size:1.3rem;"></i> Relatórios &amp; Financeiro</h2>
           <p class="section-subtitle">Análise de faturamento e desempenho do negócio</p>
         </div>
+
+        <!-- Seletor de período -->
+        <form method="GET" action="" id="formPeriodo" style="display:flex;align-items:center;gap:.5rem;">
+          <input type="hidden" name="secao" value="relatorios">
+          <label style="font-size:.82rem;color:var(--muted);font-weight:600;">Período:</label>
+          <select class="form-control" id="selectPeriodo" name="periodo"
+            style="width:auto;font-size:.85rem;"
+            onchange="this.form.submit()">
+            <option value="semana" <?= $periodoSelecionado === 'semana'    ? 'selected' : '' ?>>Semanal</option>
+            <option value="mes" <?= $periodoSelecionado === 'mes'       ? 'selected' : '' ?>>Mensal</option>
+            <option value="trimestre" <?= $periodoSelecionado === 'trimestre' ? 'selected' : '' ?>>Semestral</option>
+            <option value="ano" <?= $periodoSelecionado === 'ano'       ? 'selected' : '' ?>>Anual</option>
+          </select>
+        </form>
       </div>
 
-      <div class="kpi-grid">
+      <!-- ── KPIs do período ──────────────────────────────────── -->
+      <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+
         <div class="kpi-card kpi-rose">
           <div class="kpi-icon"><i class="bi bi-currency-dollar"></i></div>
           <div class="kpi-info">
-            <div class="kpi-label">Faturamento Total</div>
-            <div class="kpi-value">R$ <?= number_format((float)($resumo['faturamento_mes'] ?? 0), 2, ',', '.') ?></div>
-            <div class="kpi-trend"><i class="bi bi-bar-chart"></i> acumulado</div>
+            <div class="kpi-label">Receita <?= htmlspecialchars($nomePeriodo) ?></div>
+            <div class="kpi-value">R$ <?= $dadosPeriodo['receita'] ?></div>
+            <div class="kpi-trend"><i class="bi bi-bar-chart"></i> no período</div>
           </div>
         </div>
+
         <div class="kpi-card kpi-choco">
-          <div class="kpi-icon"><i class="bi bi-calendar-month"></i></div>
+          <div class="kpi-icon"><i class="bi bi-bag-check"></i></div>
           <div class="kpi-info">
-            <div class="kpi-label">Faturamento do Mês</div>
-            <div class="kpi-value">R$ <?= number_format((float)($resumo['faturamento_mes'] ?? 0), 2, ',', '.') ?></div>
-            <div class="kpi-trend" style="color:var(--choco-light);"><i class="bi bi-calendar2"></i> mês atual</div>
+            <div class="kpi-label">Atendimentos</div>
+            <div class="kpi-value"><?= $dadosPeriodo['atendimentos'] ?></div>
+            <div class="kpi-trend"><i class="bi bi-calendar-check"></i> pedidos</div>
           </div>
         </div>
+
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-icon"><i class="bi bi-receipt"></i></div>
+          <div class="kpi-info">
+            <div class="kpi-label">Ticket Médio</div>
+            <div class="kpi-value">R$ <?= $dadosPeriodo['ticket_medio'] ?></div>
+            <div class="kpi-trend"><i class="bi bi-calculator"></i> por pedido</div>
+          </div>
+        </div>
+
+        <div class="kpi-card kpi-success">
+          <div class="kpi-icon"><i class="bi bi-person-plus"></i></div>
+          <div class="kpi-info">
+            <div class="kpi-label">Clientes Novos</div>
+            <div class="kpi-value"><?= $dadosPeriodo['clientesNovos'] ?></div>
+            <div class="kpi-trend"><i class="bi bi-person-check"></i> cadastrados</div>
+          </div>
+        </div>
+
       </div>
 
-      <div class="admin-card">
+      <!-- ── Gráfico diário ───────────────────────────────────── -->
+      <div class="admin-card" style="margin-top:1.5rem;">
         <h5 style="font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--choco);display:flex;align-items:center;gap:.5rem;margin-bottom:1.5rem;">
           <span style="display:inline-block;width:4px;height:18px;background:linear-gradient(180deg,var(--rose),var(--rose-dark));border-radius:4px;"></span>
           Faturamento Diário — Últimos 30 Dias
@@ -560,32 +733,45 @@ $flash = null;
         <canvas id="chartFaturamentoDiario" height="60"></canvas>
       </div>
 
+      <!-- ── Resumo dos últimos 6 meses ───────────────────────── -->
       <div class="admin-card" style="margin-top:1.5rem;">
         <div class="admin-card-header">
-          <h5><i class="bi bi-trophy"></i> 🏆 Produtos Mais Vendidos</h5>
+          <h5><i class="bi bi-calendar3"></i> Resumo dos Últimos 6 Meses</h5>
         </div>
         <div class="table-responsive">
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Produto</th>
-                <th>Un. Vendidas</th>
+                <th>Mês</th>
+                <th>Receita</th>
                 <th>Pedidos</th>
-                <th>Faturamento</th>
+                <th>Variação</th>
               </tr>
             </thead>
             <tbody>
-              <?php foreach ($topProdutos as $tp): ?>
+              <?php foreach (array_reverse($resumoMeses) as $mes): ?>
                 <tr>
-                  <td><strong><?= htmlspecialchars($tp['nome']) ?></strong></td>
-                  <td><?= (int)$tp['total_vendido'] ?></td>
-                  <td><?= (int)$tp['total_pedidos'] ?></td>
-                  <td><strong style="color:var(--rose);">R$ <?= number_format((float)$tp['total_faturado'], 2, ',', '.') ?></strong></td>
+                  <td class="fw-medium"><?= htmlspecialchars($mes['mes']) ?></td>
+                  <td><strong style="color:var(--rose);"><?= htmlspecialchars($mes['receita']) ?></strong></td>
+                  <td><?= (int)$mes['atendimentos'] ?></td>
+                  <td>
+                    <?php if ($mes['variacao'] > 0): ?>
+                      <span class="badge-status badge-success">
+                        <i class="bi bi-arrow-up-short"></i> <?= htmlspecialchars($mes['variacaoFormatada']) ?>
+                      </span>
+                    <?php elseif ($mes['variacao'] < 0): ?>
+                      <span class="badge-status badge-danger">
+                        <i class="bi bi-arrow-down-short"></i> <?= htmlspecialchars($mes['variacaoFormatada']) ?>
+                      </span>
+                    <?php else: ?>
+                      <span class="badge-status badge-secondary">—</span>
+                    <?php endif; ?>
+                  </td>
                 </tr>
               <?php endforeach; ?>
-              <?php if (empty($topProdutos)): ?>
+              <?php if (empty($resumoMeses)): ?>
                 <tr>
-                  <td colspan="4" class="text-center text-muted py-4">Sem dados de vendas ainda.</td>
+                  <td colspan="4" class="text-center text-muted py-4">Sem dados ainda.</td>
                 </tr>
               <?php endif; ?>
             </tbody>
@@ -593,30 +779,109 @@ $flash = null;
         </div>
       </div>
 
+      <!-- ── Produtos mais vendidos ───────────────────────────── -->
       <div class="admin-card" style="margin-top:1.5rem;">
         <div class="admin-card-header">
-          <h5><i class="bi bi-calendar3"></i> Faturamento por Mês</h5>
+          <h5><i class="bi bi-trophy"></i> Produtos Mais Vendidos</h5>
         </div>
         <div class="table-responsive">
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Mês</th>
-                <th>Pedidos</th>
+                <th>Produto</th>
+                <th>Un. Vendidas</th>
                 <th>Faturamento</th>
               </tr>
             </thead>
             <tbody>
-              <?php foreach (array_reverse($faturMes) as $mes): ?>
+              <?php foreach ($topProdutos as $tp): ?>
                 <tr>
-                  <td><?= htmlspecialchars($mes['mes_label']) ?></td>
-                  <td><?= (int)$mes['total_pedidos'] ?></td>
-                  <td><strong style="color:var(--rose);">R$ <?= number_format((float)$mes['faturamento'], 2, ',', '.') ?></strong></td>
+                  <td>
+                    <span style="font-size:1.1rem;margin-right:.4rem;"><?= htmlspecialchars($tp['emoji'] ?? '') ?></span>
+                    <strong><?= htmlspecialchars($tp['nome_produto']) ?></strong>
+                  </td>
+                  <td><?= (int)$tp['total_vendido'] ?></td>
+                  <td><strong style="color:var(--rose);">R$ <?= number_format((float)$tp['receita_total'], 2, ',', '.') ?></strong></td>
                 </tr>
               <?php endforeach; ?>
-              <?php if (empty($faturMes)): ?>
+              <?php if (empty($topProdutos)): ?>
                 <tr>
-                  <td colspan="3" class="text-center text-muted py-4">Sem dados ainda.</td>
+                  <td colspan="3" class="text-center text-muted py-4">Sem dados de vendas ainda.</td>
+                </tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ══════════════════════════════════════
+       SEÇÃO: PACOTES
+  ══════════════════════════════════════ -->
+    <section class="admin-section" id="secPacotes">
+      <div class="admin-section-header">
+        <div>
+          <h2><i class="bi bi-box-seam" style="color:var(--rose);font-size:1.3rem;"></i> Gerenciar Pacotes</h2>
+          <p class="section-subtitle">Crie e edite os pacotes disponíveis no site</p>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalPacote()">
+          <i class="bi bi-plus-lg"></i> Novo Pacote
+        </button>
+      </div>
+      <div class="admin-card">
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Quantidade</th>
+                <th>Máx. Sabores</th>
+                <th>Descrição</th>
+                <th>Popular</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($pacotes as $pac): ?>
+                <tr>
+                  <td><span style="color:var(--muted);font-size:.8rem;"><?= (int)$pac['id'] ?></span></td>
+                  <td><strong style="color:var(--rose);font-size:1.1rem;"><?= (int)$pac['quantidade'] ?></strong> <small class="text-muted">un</small></td>
+                  <td><?= (int)$pac['max_sabores'] ?> sabores</td>
+                  <td><?= htmlspecialchars($pac['descricao']) ?></td>
+                  <td>
+                    <?php if ($pac['popular']): ?>
+                      <span class="badge-status badge-warning"><i class="bi bi-star-fill"></i> Popular</span>
+                    <?php else: ?>
+                      <span style="color:var(--muted);font-size:.82rem;">—</span>
+                    <?php endif; ?>
+                  </td>
+                  <td>
+                    <?php if ($pac['ativo']): ?>
+                      <span class="badge-status badge-success">Ativo</span>
+                    <?php else: ?>
+                      <span class="badge-status badge-danger">Inativo</span>
+                    <?php endif; ?>
+                  </td>
+                  <td style="display:flex;gap:.35rem;">
+                    <button class="btn btn-xs btn-outline"
+                      onclick='abrirModalPacote(<?= htmlspecialchars(json_encode($pac, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), ENT_QUOTES) ?>)'
+                      title="Editar">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-xs btn-danger"
+                      onclick="excluirPacote(<?= (int)$pac['id'] ?>, <?= (int)$pac['quantidade'] ?>)"
+                      title="Desativar">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+              <?php if (empty($pacotes)): ?>
+                <tr>
+                  <td colspan="7" class="text-center text-muted py-4">Nenhum pacote cadastrado.</td>
                 </tr>
               <?php endif; ?>
             </tbody>
@@ -625,541 +890,852 @@ $flash = null;
       </div>
     </section>
 
-  </div><!-- /admin-main -->
-
-  <!-- ═══════════════ MODAL: DETALHES DO PEDIDO ═══════════════ -->
-  <div class="modal fade" id="modalPedido" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="bi bi-receipt"></i> Detalhes do Pedido</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body" id="modalPedidoBody">
-          <div class="text-center py-4">
-            <div class="spinner-border text-rose"></div>
+    <!-- ═══════════════ MODAL: PACOTE ═══════════════ -->
+    <div class="modal fade" id="modalPacote" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalPacoteTitulo"><i class="bi bi-box-seam"></i> Pacote</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formPacote">
+              <input type="hidden" name="id" id="pacoteId">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Quantidade (un.) <span class="required">*</span></label>
+                  <input type="number" class="form-control" name="quantidade" id="pacoteQtd"
+                    required min="1" placeholder="Ex: 100">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Máx. Sabores <span class="required">*</span></label>
+                  <input type="number" class="form-control" name="max_sabores" id="pacoteSabores"
+                    required min="1" placeholder="Ex: 5">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Descrição</label>
+                <input type="text" class="form-control" name="descricao" id="pacoteDesc"
+                  maxlength="100" placeholder="Ex: Ideal para festas médias">
+              </div>
+              <div class="form-row" style="gap:1.5rem;margin-top:.5rem;">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="popular" id="pacotePopular" value="1">
+                  <label class="form-check-label" for="pacotePopular">
+                    <i class="bi bi-star-fill" style="color:var(--warning);"></i> Marcar como Popular
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="ativo" id="pacoteAtivo" value="1" checked>
+                  <label class="form-check-label" for="pacoteAtivo">Pacote ativo</label>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top:1.5rem;">
+                <i class="bi bi-check2-circle"></i> Salvar Pacote
+              </button>
+            </form>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- ═══════════════ MODAL: ALTERAR STATUS ═══════════════ -->
-  <div class="modal fade" id="modalStatus" tabindex="-1">
-    <div class="modal-dialog modal-sm">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="bi bi-pencil"></i> Alterar Status</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <form id="formStatus" action="actions/alterar_status.php" method="POST">
-            <input type="hidden" name="pedido_id" id="statusPedidoId">
-            <div class="form-group">
-              <label class="form-label">Novo Status</label>
-              <select class="form-control" name="status" id="selectStatus">
-                <?php foreach ($statusLabels as $key => $label): ?>
-                  <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($label) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <button type="submit" class="btn btn-primary btn-full mt-3">
-              <i class="bi bi-check2"></i> Salvar
-            </button>
-          </form>
+    <!-- ═══════════════ MODAL: NOVO USUÁRIO ═══════════════ -->
+    <div class="modal fade" id="modalNovoUsuario" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-person-plus"></i> Novo Usuário</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formNovoUsuario">
+              <div class="form-group">
+                <label class="form-label">Nome completo <span class="required">*</span></label>
+                <input type="text" class="form-control" name="nome" id="nuNome" required maxlength="100">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">E-mail <span class="required">*</span></label>
+                  <input type="email" class="form-control" name="email" id="nuEmail" required maxlength="150">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Telefone</label>
+                  <input type="tel" class="form-control" name="telefone" id="nuTelefone" maxlength="20" placeholder="(11) 99999-9999">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Senha <span class="required">*</span></label>
+                  <input type="password" class="form-control" name="senha" id="nuSenha" required minlength="6" placeholder="Mín. 6 caracteres">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tipo <span class="required">*</span></label>
+                  <select class="form-control" name="id_tipo" id="nuTipo" required>
+                    <option value="2">Cliente</option>
+                    <option value="1">Administrador</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top:1rem;">
+                <i class="bi bi-person-plus"></i> Cadastrar Usuário
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- ═══════════════ MODAL: PRODUTO ═══════════════ -->
-  <div class="modal fade" id="modalProduto" tabindex="-1">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="modalProdutoTitulo"><i class="bi bi-box-seam"></i> Produto</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- ═══════════════ MODAL: DETALHES DO PEDIDO ═══════════════ -->
+    <div class="modal fade" id="modalPedido" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-receipt"></i> Detalhes do Pedido</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" id="modalPedidoBody">
+            <div class="text-center py-4">
+              <div class="spinner-border text-rose"></div>
+            </div>
+          </div>
         </div>
-        <div class="modal-body">
-          <form id="formProduto" action="actions/produto_salvar.php" method="POST">
-            <input type="hidden" name="id" id="produtoId">
-            <div class="form-row">
-              <div class="form-group" style="flex:2;">
-                <label class="form-label">Nome <span class="required">*</span></label>
-                <input type="text" class="form-control" name="nome" id="produtoNome" required maxlength="100">
-              </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ MODAL: ALTERAR STATUS ═══════════════ -->
+    <div class="modal fade" id="modalStatus" tabindex="-1">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-pencil"></i> Alterar Status</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formStatus" action="actions/alterar_status.php" method="POST">
+              <input type="hidden" name="pedido_id" id="statusPedidoId">
               <div class="form-group">
-                <label class="form-label">Emoji</label>
-                <input type="text" class="form-control" name="emoji" id="produtoEmoji" maxlength="10" placeholder="🍗">
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Descrição</label>
-              <textarea class="form-control" name="descricao" id="produtoDescricao" rows="2" maxlength="300"></textarea>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Categoria <span class="required">*</span></label>
-                <select class="form-control" name="categoria_id" id="produtoCat" required>
-                  <?php foreach ($categorias as $cat): ?>
-                    <option value="<?= (int)$cat['id'] ?>"><?= htmlspecialchars($cat['nome']) ?></option>
+                <label class="form-label">Novo Status</label>
+                <select class="form-control" name="status" id="selectStatus">
+                  <?php foreach ($statusLabels as $key => $label): ?>
+                    <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($label) ?></option>
                   <?php endforeach; ?>
                 </select>
               </div>
-              <div class="form-group">
-                <label class="form-label">Tag</label>
-                <input type="text" class="form-control" name="tag" id="produtoTag" maxlength="30" placeholder="Clássico">
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Preço (R$) <span class="required">*</span></label>
-                <input type="number" class="form-control" name="preco" id="produtoPreco" required min="0.01" step="0.01">
-              </div>
-              <div class="form-group d-flex align-items-end pb-2">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="ativo" id="produtoAtivo" value="1" checked>
-                  <label class="form-check-label" for="produtoAtivo">Produto ativo</label>
-                </div>
-              </div>
-            </div>
-            <button type="submit" class="btn btn-primary btn-full btn-lg">
-              <i class="bi bi-check2-circle"></i> Salvar Produto
-            </button>
-          </form>
+              <button type="submit" class="btn btn-primary btn-full mt-3">
+                <i class="bi bi-check2"></i> Salvar
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    /* ── Data na topbar ── */
-    document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pt-BR', {
-      weekday: 'short',
-      day: '2-digit',
-      month: 'short'
-    });
+    <!-- ═══════════════ MODAL: PRODUTO ═══════════════ -->
+    <div class="modal fade" id="modalProduto" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalProdutoTitulo"><i class="bi bi-box-seam"></i> Produto</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formProduto" action="actions/produto_salvar.php" method="POST">
+              <input type="hidden" name="id" id="produtoId">
+              <div class="form-row">
+                <div class="form-group" style="flex:2;">
+                  <label class="form-label">Nome <span class="required">*</span></label>
+                  <input type="text" class="form-control" name="nome" id="produtoNome" required maxlength="100">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Emoji</label>
+                  <input type="text" class="form-control" name="emoji" id="produtoEmoji" maxlength="10" placeholder="🍗">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Descrição</label>
+                <textarea class="form-control" name="descricao" id="produtoDescricao" rows="2" maxlength="300"></textarea>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Categoria <span class="required">*</span></label>
+                  <select class="form-control" name="categoria_id" id="produtoCat" required>
+                    <?php foreach ($categorias as $cat): ?>
+                      <option value="<?= (int)$cat['id'] ?>"><?= htmlspecialchars($cat['nome']) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tag</label>
+                  <input type="text" class="form-control" name="tag" id="produtoTag" maxlength="30" placeholder="Clássico">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Preço (R$) <span class="required">*</span></label>
+                  <input type="number" class="form-control" name="preco" id="produtoPreco" required min="0.01" step="0.01">
+                </div>
+                <div class="form-group d-flex align-items-end pb-2">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="ativo" id="produtoAtivo" value="1" checked>
+                    <label class="form-check-label" for="produtoAtivo">Produto ativo</label>
+                  </div>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-full btn-lg">
+                <i class="bi bi-check2-circle"></i> Salvar Produto
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    /* ── Sidebar toggle (desktop collapse / mobile slide) ── */
-    const sidebar = document.getElementById('adminSidebar');
-    const mainEl = document.getElementById('adminMain');
-    const overlay = document.getElementById('sidebarOverlay');
-
-    document.getElementById('sidebarToggle').addEventListener('click', () => {
-      if (window.innerWidth <= 768) {
-        sidebar.classList.toggle('mobile-open');
-        overlay.classList.toggle('active');
-      } else {
-        sidebar.classList.toggle('collapsed');
-        mainEl.classList.toggle('expanded');
-      }
-    });
-    overlay.addEventListener('click', () => {
-      sidebar.classList.remove('mobile-open');
-      overlay.classList.remove('active');
-    });
-
-    /* ── Logout com SweetAlert ── */
-    document.getElementById('btnSair').addEventListener('click', function(e) {
-      e.preventDefault();
-      Swal.fire({
-        title: 'Deseja sair?',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: 'var(--rose)',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sim, sair',
-        cancelButtonText: 'Cancelar'
-      }).then(r => {
-        if (r.isConfirmed) window.location.href = this.href;
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      /* ── Data na topbar ── */
+      document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('pt-BR', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short'
       });
-    });
 
-    /* ── Mostrar seção ── */
-    function showSection(id, el) {
-      document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      if (el) el.classList.add('active');
-      const titles = {
-        secDashboard: 'Dashboard',
-        secPedidos: 'Pedidos',
-        secProdutos: 'Produtos',
-        secClientes: 'Clientes',
-        secRelatorios: 'Relatórios'
-      };
-      document.getElementById('pageTitle').textContent = titles[id] || '';
-      // fecha sidebar no mobile ao navegar
-      if (window.innerWidth <= 768) {
+      /* ── Sidebar toggle (desktop collapse / mobile slide) ── */
+      const sidebar = document.getElementById('adminSidebar');
+      const mainEl = document.getElementById('adminMain');
+      const overlay = document.getElementById('sidebarOverlay');
+
+      document.getElementById('sidebarToggle').addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.toggle('mobile-open');
+          overlay.classList.toggle('active');
+        } else {
+          sidebar.classList.toggle('collapsed');
+          mainEl.classList.toggle('expanded');
+        }
+      });
+
+      overlay.addEventListener('click', () => {
         sidebar.classList.remove('mobile-open');
         overlay.classList.remove('active');
-      }
-      return false;
-    }
-
-    /* ── Filtro de status nos pedidos ── */
-    document.querySelectorAll('.filter-bar-admin .filter-chip').forEach(chip => {
-      chip.addEventListener('click', function() {
-        document.querySelectorAll('.filter-bar-admin .filter-chip').forEach(c => c.classList.remove('active'));
-        this.classList.add('active');
-        const status = this.dataset.status;
-        document.querySelectorAll('#tabelaPedidos tbody tr').forEach(row => {
-          row.style.display = (!status || row.dataset.status === status) ? '' : 'none';
-        });
       });
-    });
 
-    /* ── Abrir detalhes do pedido ── */
-    function abrirPedido(id) {
-      const modal = new bootstrap.Modal(document.getElementById('modalPedido'));
-      document.getElementById('modalPedidoBody').innerHTML =
-        '<div class="text-center py-4"><div class="spinner-border" style="color:var(--rose);"></div></div>';
-      modal.show();
-      fetch(`actions/pedido_detalhe.php?id=${id}`)
-        .then(r => r.text())
-        .then(html => {
-          document.getElementById('modalPedidoBody').innerHTML = html;
-        })
-        .catch(() => {
-          document.getElementById('modalPedidoBody').innerHTML = '<p class="text-danger">Erro ao carregar pedido.</p>';
-        });
-    }
-
-    /* ── Alterar status do pedido ── */
-    function abrirAlterarStatus(id, statusAtual) {
-      document.getElementById('statusPedidoId').value = id;
-      document.getElementById('selectStatus').value = statusAtual;
-      new bootstrap.Modal(document.getElementById('modalStatus')).show();
-    }
-
-    document.getElementById('formStatus').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const pedidoId = document.getElementById('statusPedidoId').value;
-      const novoStatus = document.getElementById('selectStatus').value;
-      fetch('actions/alterar_status.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: `pedido_id=${pedidoId}&status=${novoStatus}`
-        })
-        .then(r => r.json())
-        .then(data => {
-          bootstrap.Modal.getInstance(document.getElementById('modalStatus')).hide();
-          if (data.sucesso) {
-            Swal.fire({
-              icon: 'success',
-              title: 'Status atualizado!',
-              timer: 2000,
-              showConfirmButton: false,
-              toast: true,
-              position: 'top-end'
-            });
-            setTimeout(() => location.reload(), 1500);
-          } else {
-            Swal.fire({
-              icon: 'error',
-              title: 'Erro ao atualizar status.',
-              confirmButtonColor: 'var(--rose)'
-            });
-          }
-        });
-    });
-
-    /* ── Modal de produto ── */
-    function abrirModalProduto(prod = null) {
-      document.getElementById('modalProdutoTitulo').textContent = prod ? '✏️ Editar Produto' : '➕ Novo Produto';
-      document.getElementById('produtoId').value = prod?.id ?? '';
-      document.getElementById('produtoNome').value = prod?.nome ?? '';
-      document.getElementById('produtoEmoji').value = prod?.emoji ?? '';
-      document.getElementById('produtoDescricao').value = prod?.descricao ?? '';
-      document.getElementById('produtoCat').value = prod?.categoria_id ?? '1';
-      document.getElementById('produtoTag').value = prod?.tag ?? '';
-      document.getElementById('produtoPreco').value = prod?.preco ?? '';
-      document.getElementById('produtoAtivo').checked = prod ? prod.ativo == 1 : true;
-      new bootstrap.Modal(document.getElementById('modalProduto')).show();
-    }
-
-    document.getElementById('formProduto').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const fd = new FormData(this);
-      fetch('actions/produto_salvar.php', {
-          method: 'POST',
-          body: fd
-        })
-        .then(r => r.json())
-        .then(data => {
-          bootstrap.Modal.getInstance(document.getElementById('modalProduto')).hide();
-          if (data.sucesso) {
-            Swal.fire({
-              icon: 'success',
-              title: data.mensagem ?? 'Produto salvo!',
-              timer: 2000,
-              showConfirmButton: false,
-              toast: true,
-              position: 'top-end'
-            });
-            setTimeout(() => location.reload(), 1500);
-          } else {
-            Swal.fire({
-              icon: 'error',
-              title: data.mensagem ?? 'Erro ao salvar produto.',
-              confirmButtonColor: 'var(--rose)'
-            });
-          }
-        });
-    });
-
-    /* ── Excluir produto ── */
-    function excluirProduto(id, nome) {
-      Swal.fire({
-        title: `Desativar "${nome}"?`,
-        text: 'O produto não aparecerá mais no site.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#e53935',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sim, desativar',
-        cancelButtonText: 'Cancelar'
-      }).then(r => {
-        if (!r.isConfirmed) return;
-        fetch('actions/produto_excluir.php', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: `id=${id}`
-          })
-          .then(r => r.json())
-          .then(data => {
-            if (data.sucesso) {
-              Swal.fire({
-                icon: 'success',
-                title: 'Produto desativado!',
-                timer: 2000,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end'
-              });
-              setTimeout(() => location.reload(), 1500);
-            } else {
-              Swal.fire({
-                icon: 'error',
-                title: data.mensagem ?? 'Erro ao desativar.',
-                confirmButtonColor: 'var(--rose)'
-              });
-            }
-          });
-      });
-    }
-
-    /* ── Bloquear/desbloquear cliente ── */
-    function alterarBloqueioCliente(id, bloquear, nome) {
-      const acao = bloquear ? 'bloquear' : 'desbloquear';
-      Swal.fire({
-        title: `${bloquear ? 'Bloquear' : 'Desbloquear'} "${nome}"?`,
-        icon: bloquear ? 'warning' : 'question',
-        showCancelButton: true,
-        confirmButtonColor: bloquear ? '#e53935' : '#2e7d32',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: `Sim, ${acao}`,
-        cancelButtonText: 'Cancelar'
-      }).then(r => {
-        if (!r.isConfirmed) return;
-        fetch('actions/cliente_bloquear.php', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: `id=${id}&bloqueado=${bloquear}`
-          })
-          .then(r => r.json())
-          .then(data => {
-            if (data.sucesso) {
-              Swal.fire({
-                icon: 'success',
-                title: `Cliente ${acao}do com sucesso!`,
-                timer: 2000,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end'
-              });
-              setTimeout(() => location.reload(), 1500);
-            } else {
-              Swal.fire({
-                icon: 'error',
-                title: 'Erro na operação.',
-                confirmButtonColor: 'var(--rose)'
-              });
-            }
-          });
-      });
-    }
-
-    /* ── Flash message ── */
-    <?php if ($flash): ?>
-      document.addEventListener('DOMContentLoaded', () => {
+      /* ── Logout com confirmação ── */
+      document.getElementById('btnSair').addEventListener('click', function(e) {
+        e.preventDefault();
         Swal.fire({
-          icon: '<?= $flash['tipo'] === 'sucesso' ? 'success' : 'error' ?>',
-          title: '<?= addslashes(htmlspecialchars($flash['mensagem'])) ?>',
-          timer: 3000,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end'
+          title: 'Deseja sair?',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonColor: 'var(--rose)',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Sim, sair',
+          cancelButtonText: 'Cancelar'
+        }).then(r => {
+          if (r.isConfirmed) this.closest('form').submit();
         });
       });
-    <?php endif; ?>
 
-    /* ── Charts ── */
-    document.addEventListener('DOMContentLoaded', () => {
-      const meses = <?= json_encode(array_column($faturMes, 'mes_label')) ?>;
-      const fatMes = <?= json_encode(array_column($faturMes, 'faturamento')) ?>;
+      /* ── Seção ativa rastreada para reload correto ── */
+      let _secaoAtiva = 'secDashboard';
 
-      const ctxFat = document.getElementById('chartFaturamento');
-      if (ctxFat) {
-        new Chart(ctxFat, {
-          type: 'bar',
-          data: {
-            labels: meses.slice(-6),
-            datasets: [{
-              label: 'Faturamento (R$)',
-              data: fatMes.slice(-6),
-              backgroundColor: [
-                'rgba(194,24,91,.85)', 'rgba(194,24,91,.75)', 'rgba(194,24,91,.65)',
-                'rgba(194,24,91,.55)', 'rgba(194,24,91,.45)', 'rgba(194,24,91,.85)'
-              ],
-              borderColor: '#C2185B',
-              borderWidth: 0,
-              borderRadius: 8,
-              borderSkipped: false,
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: {
-                display: false
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: 'rgba(0,0,0,.04)'
-                },
-                ticks: {
-                  font: {
-                    size: 11
-                  }
-                }
+      function recarregarSecao() {
+        const nome = _secaoAtiva.replace('sec', '').toLowerCase();
+        const params = new URLSearchParams(window.location.search);
+        params.set('secao', nome);
+        window.location.href = window.location.pathname + '?' + params.toString();
+      }
+
+      /* ── Mostrar seção ── */
+      function showSection(id, el) {
+        _secaoAtiva = id;
+        document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if (el) el.classList.add('active');
+        const titles = {
+          secDashboard: 'Dashboard',
+          secPedidos: 'Pedidos',
+          secProdutos: 'Produtos',
+          secClientes: 'Clientes',
+          secPacotes: 'Pacotes',
+          secRelatorios: 'Relatórios'
+        };
+        document.getElementById('pageTitle').textContent = titles[id] || '';
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('mobile-open');
+          overlay.classList.remove('active');
+        }
+        return false;
+      }
+
+      /* ── Filtro de status nos pedidos ── */
+      document.querySelectorAll('.filter-bar-admin .filter-chip').forEach(chip => {
+        chip.addEventListener('click', function() {
+          document.querySelectorAll('.filter-bar-admin .filter-chip').forEach(c => c.classList.remove('active'));
+          this.classList.add('active');
+          const status = this.dataset.status;
+          document.querySelectorAll('#tabelaPedidos tbody tr').forEach(row => {
+            row.style.display = (!status || row.dataset.status === status) ? '' : 'none';
+          });
+        });
+      });
+
+      /* ── Abrir detalhes do pedido ── */
+      function abrirPedido(id) {
+        const modal = new bootstrap.Modal(document.getElementById('modalPedido'));
+        document.getElementById('modalPedidoBody').innerHTML =
+          '<div class="text-center py-4"><div class="spinner-border" style="color:var(--rose);"></div></div>';
+        modal.show();
+        fetch(`../actions/pedido_detalhe.php?id=${id}`)
+          .then(r => r.text())
+          .then(html => {
+            document.getElementById('modalPedidoBody').innerHTML = html;
+          })
+          .catch(() => {
+            document.getElementById('modalPedidoBody').innerHTML =
+              '<p class="text-danger">Erro ao carregar pedido.</p>';
+          });
+      }
+
+      /* ── Alterar status do pedido ── */
+      function abrirAlterarStatus(id, statusAtual) {
+        document.getElementById('statusPedidoId').value = id;
+        document.getElementById('selectStatus').value = statusAtual;
+        new bootstrap.Modal(document.getElementById('modalStatus')).show();
+      }
+
+      /* ── Modal de produto ── */
+      function abrirModalProduto(prod = null) {
+        document.getElementById('modalProdutoTitulo').textContent =
+          prod ? '✏️ Editar Produto' : '➕ Novo Produto';
+        document.getElementById('produtoId').value = prod?.id ?? '';
+        document.getElementById('produtoNome').value = prod?.nome ?? '';
+        document.getElementById('produtoEmoji').value = prod?.emoji ?? '';
+        document.getElementById('produtoDescricao').value = prod?.descricao ?? '';
+        document.getElementById('produtoCat').value = prod?.categoria_id ?? '1';
+        document.getElementById('produtoTag').value = prod?.tag ?? '';
+        document.getElementById('produtoPreco').value = prod?.preco ?? '';
+        document.getElementById('produtoAtivo').checked = prod ? prod.ativo == 1 : true;
+        new bootstrap.Modal(document.getElementById('modalProduto')).show();
+      }
+
+      /* ── Excluir produto ── */
+      function excluirProduto(id, nome) {
+        Swal.fire({
+          title: `Desativar "${nome}"?`,
+          text: 'O produto não aparecerá mais no site.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#e53935',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Sim, desativar',
+          cancelButtonText: 'Cancelar'
+        }).then(r => {
+          if (!r.isConfirmed) return;
+          fetch('../actions/produto_excluir.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
               },
-              x: {
-                grid: {
-                  display: false
-                },
-                ticks: {
-                  font: {
-                    size: 11
-                  }
-                }
+              body: `id=${id}`
+            })
+            .then(r => r.json())
+            .then(data => {
+              if (data.sucesso) {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Produto desativado!',
+                  timer: 2000,
+                  showConfirmButton: false,
+                  toast: true,
+                  position: 'top-end'
+                });
+                setTimeout(recarregarSecao, 1500);
+              } else {
+                Swal.fire({
+                  icon: 'error',
+                  title: data.mensagem ?? 'Erro ao desativar.',
+                  confirmButtonColor: 'var(--rose)'
+                });
               }
-            }
-          }
+            });
         });
       }
 
-      const topNomes = <?= json_encode(array_column($topProdutos, 'nome')) ?>;
-      const topQtds = <?= json_encode(array_column($topProdutos, 'total_vendido')) ?>;
-      const ctxProd = document.getElementById('chartProdutos');
-      if (ctxProd && topNomes.length) {
-        new Chart(ctxProd, {
-          type: 'doughnut',
-          data: {
-            labels: topNomes,
-            datasets: [{
-              data: topQtds,
-              backgroundColor: ['#C2185B', '#880E4F', '#5D4037', '#FB8C00', '#43A047'],
-              borderWidth: 3,
-              borderColor: '#fff',
-              hoverOffset: 6
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  padding: 16,
-                  font: {
-                    size: 12
-                  }
-                }
+      /* ── Bloquear/desbloquear cliente ── */
+      function alterarBloqueioCliente(id, bloquear, nome) {
+        const acao = bloquear ? 'bloquear' : 'desbloquear';
+        Swal.fire({
+          title: `${bloquear ? 'Bloquear' : 'Desbloquear'} "${nome}"?`,
+          icon: bloquear ? 'warning' : 'question',
+          showCancelButton: true,
+          confirmButtonColor: bloquear ? '#e53935' : '#2e7d32',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: `Sim, ${acao}`,
+          cancelButtonText: 'Cancelar'
+        }).then(r => {
+          if (!r.isConfirmed) return;
+          fetch('../actions/cliente_bloquear.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: `id=${id}&bloqueado=${bloquear}`
+            })
+            .then(r => {
+              if (!r.ok) throw new Error('HTTP ' + r.status);
+              return r.json();
+            })
+            .then(data => {
+              if (data.sucesso) {
+                Swal.fire({
+                  icon: 'success',
+                  title: `Cliente ${acao}do com sucesso!`,
+                  timer: 2000,
+                  showConfirmButton: false,
+                  toast: true,
+                  position: 'top-end'
+                });
+                setTimeout(recarregarSecao, 1500);
+              } else {
+                Swal.fire({
+                  icon: 'error',
+                  title: data.mensagem ?? 'Erro na operação.',
+                  confirmButtonColor: 'var(--rose)'
+                });
               }
-            },
-            cutout: '65%'
-          }
+            })
+            .catch(err => {
+              Swal.fire({
+                icon: 'error',
+                title: 'Falha na requisição: ' + err.message,
+                confirmButtonColor: 'var(--rose)'
+              });
+            });
         });
       }
 
-      const diasLabel = <?= json_encode(array_column(array_reverse($fatDiario), 'dia')) ?>;
-      const diasFat = <?= json_encode(array_column(array_reverse($fatDiario), 'faturamento')) ?>;
-      const ctxDiario = document.getElementById('chartFaturamentoDiario');
-      if (ctxDiario) {
-        new Chart(ctxDiario, {
-          type: 'line',
-          data: {
-            labels: diasLabel,
-            datasets: [{
-              label: 'Faturamento Diário (R$)',
-              data: diasFat,
-              borderColor: '#C2185B',
-              backgroundColor: 'rgba(194,24,91,.08)',
-              tension: 0.4,
-              fill: true,
-              pointRadius: 4,
-              pointBackgroundColor: '#C2185B',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: {
-                display: false
+      /* ── Modal Pacote ── */
+      function abrirModalPacote(pac = null) {
+        document.getElementById('modalPacoteTitulo').innerHTML =
+          pac ? '<i class="bi bi-pencil"></i> Editar Pacote' :
+          '<i class="bi bi-plus-lg"></i> Novo Pacote';
+        document.getElementById('pacoteId').value = pac?.id ?? '';
+        document.getElementById('pacoteQtd').value = pac?.quantidade ?? '';
+        document.getElementById('pacoteSabores').value = pac?.max_sabores ?? '';
+        document.getElementById('pacoteDesc').value = pac?.descricao ?? '';
+        document.getElementById('pacotePopular').checked = pac ? pac.popular == 1 : false;
+        document.getElementById('pacoteAtivo').checked = pac ? pac.ativo == 1 : true;
+        new bootstrap.Modal(document.getElementById('modalPacote')).show();
+      }
+
+      function excluirPacote(id, qtd) {
+        Swal.fire({
+          title: `Desativar pacote de ${qtd} un.?`,
+          text: 'Ele não aparecerá mais no site.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#e53935',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Sim, desativar',
+          cancelButtonText: 'Cancelar'
+        }).then(r => {
+          if (!r.isConfirmed) return;
+          fetch('../actions/pacote_excluir.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: `id=${id}`
+            })
+            .then(r => r.json())
+            .then(data => {
+              Swal.fire({
+                icon: data.sucesso ? 'success' : 'error',
+                title: data.mensagem,
+                timer: 2000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+              });
+              if (data.sucesso) setTimeout(recarregarSecao, 1500);
+            });
+        });
+      }
+
+      /* ── Modal Novo Usuário ── */
+      function abrirModalNovoUsuario() {
+        document.getElementById('formNovoUsuario').reset();
+        new bootstrap.Modal(document.getElementById('modalNovoUsuario')).show();
+      }
+
+      /* ══════════════════════════════════════════════════════════
+         Tudo abaixo precisa do DOM pronto: event listeners e charts
+      ══════════════════════════════════════════════════════════ */
+      document.addEventListener('DOMContentLoaded', () => {
+
+        /* ── Reabre a seção correta após reload pelo seletor de período ── */
+        (function() {
+          const params = new URLSearchParams(window.location.search);
+          const secao = params.get('secao');
+          if (!secao) return;
+          const mapa = {
+            dashboard: 'secDashboard',
+            pedidos: 'secPedidos',
+            produtos: 'secProdutos',
+            clientes: 'secClientes',
+            pacotes: 'secPacotes',
+            relatorios: 'secRelatorios'
+          };
+          const secId = mapa[secao];
+          if (!secId) return;
+          const linkEl = document.querySelector(`[href="#${secId}"]`);
+          showSection(secId, linkEl);
+          params.delete('secao');
+          const novaUrl = window.location.pathname +
+            (params.toString() ? '?' + params.toString() : '');
+          window.history.replaceState({}, '', novaUrl);
+        })();
+
+        /* ── Flash message ── */
+        <?php if ($flash): ?>
+          Swal.fire({
+            icon: '<?= $flash['tipo'] === 'sucesso' ? 'success' : 'error' ?>',
+            title: '<?= addslashes(htmlspecialchars($flash['mensagem'])) ?>',
+            timer: 3000,
+            showConfirmButton: false,
+            toast: true,
+            position: 'top-end'
+          });
+        <?php endif; ?>
+
+        /* ── Submit: alterar status do pedido ── */
+        document.getElementById('formStatus').addEventListener('submit', function(e) {
+          e.preventDefault();
+          const pedidoId = document.getElementById('statusPedidoId').value;
+          const novoStatus = document.getElementById('selectStatus').value;
+          fetch('../actions/alterar_status.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: `pedido_id=${pedidoId}&status=${novoStatus}`
+            })
+            .then(r => r.json())
+            .then(data => {
+              bootstrap.Modal.getInstance(document.getElementById('modalStatus')).hide();
+              if (data.sucesso) {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Status atualizado!',
+                  timer: 2000,
+                  showConfirmButton: false,
+                  toast: true,
+                  position: 'top-end'
+                });
+                setTimeout(recarregarSecao, 1500);
+              } else {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Erro ao atualizar status.',
+                  confirmButtonColor: 'var(--rose)'
+                });
               }
+            });
+        });
+
+        /* ── Submit: salvar produto ── */
+        document.getElementById('formProduto').addEventListener('submit', function(e) {
+          e.preventDefault();
+          fetch('../actions/produto_salvar.php', {
+              method: 'POST',
+              body: new FormData(this)
+            })
+            .then(r => r.json())
+            .then(data => {
+              bootstrap.Modal.getInstance(document.getElementById('modalProduto')).hide();
+              Swal.fire({
+                icon: data.sucesso ? 'success' : 'error',
+                title: data.mensagem ?? (data.sucesso ? 'Produto salvo!' : 'Erro ao salvar produto.'),
+                timer: 2000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+              });
+              if (data.sucesso) setTimeout(recarregarSecao, 1500);
+            });
+        });
+
+        /* ── Submit: salvar pacote ── */
+        document.getElementById('formPacote').addEventListener('submit', function(e) {
+          e.preventDefault();
+          fetch('../actions/pacote_salvar.php', {
+              method: 'POST',
+              body: new FormData(this)
+            })
+            .then(r => r.json())
+            .then(data => {
+              bootstrap.Modal.getInstance(document.getElementById('modalPacote')).hide();
+              Swal.fire({
+                icon: data.sucesso ? 'success' : 'error',
+                title: data.mensagem,
+                timer: 2000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+              });
+              if (data.sucesso) setTimeout(recarregarSecao, 1500);
+            });
+        });
+
+        /* ── Submit: novo usuário ── */
+        document.getElementById('formNovoUsuario').addEventListener('submit', function(e) {
+          e.preventDefault();
+          const btnSubmit = this.querySelector('button[type="submit"]');
+          btnSubmit.disabled = true;
+          btnSubmit.textContent = 'Salvando...';
+          fetch('../actions/usuario_criar_admin.php', {
+              method: 'POST',
+              body: new FormData(this)
+            })
+            .then(r => {
+              if (!r.ok) throw new Error('Servidor retornou HTTP ' + r.status);
+              return r.text();
+            })
+            .then(text => {
+              try {
+                return JSON.parse(text);
+              } catch (e) {
+                throw new Error('Resposta inválida do servidor. Verifique se a sessão está ativa.\n\nResposta recebida: ' + text.substring(0, 200));
+              }
+            })
+            .then(data => {
+              if (data.sucesso) {
+                bootstrap.Modal.getInstance(document.getElementById('modalNovoUsuario')).hide();
+              }
+              Swal.fire({
+                icon: data.sucesso ? 'success' : 'error',
+                title: data.mensagem ?? (data.sucesso ? 'Usuário cadastrado!' : 'Erro ao cadastrar.'),
+                timer: data.sucesso ? 2500 : undefined,
+                showConfirmButton: !data.sucesso,
+                confirmButtonColor: 'var(--rose)',
+                toast: data.sucesso,
+                position: data.sucesso ? 'top-end' : 'center'
+              });
+              if (data.sucesso) setTimeout(recarregarSecao, 1500);
+            })
+            .catch(err => {
+              Swal.fire({
+                icon: 'error',
+                title: 'Erro ao cadastrar usuário',
+                text: err.message,
+                confirmButtonColor: 'var(--rose)'
+              });
+            })
+            .finally(() => {
+              btnSubmit.disabled = false;
+              btnSubmit.innerHTML = '<i class="bi bi-person-plus"></i> Cadastrar Usuário';
+            });
+        });
+
+        /* ── Máscara de telefone ── */
+        document.getElementById('nuTelefone').addEventListener('input', function() {
+          let v = this.value.replace(/\D/g, '');
+          if (v.length > 11) v = v.slice(0, 11);
+          if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+          else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+          else if (v.length > 0) v = `(${v}`;
+          this.value = v;
+        });
+
+        /* ══ CHARTS ══════════════════════════════════════════════ */
+
+        /* Faturamento mensal (bar) */
+        const meses = <?= json_encode(array_column($faturMes, 'mes_label')) ?>;
+        const fatMes = <?= json_encode(array_column($faturMes, 'faturamento')) ?>;
+        const ctxFat = document.getElementById('chartFaturamento');
+        if (ctxFat) {
+          new Chart(ctxFat, {
+            type: 'bar',
+            data: {
+              labels: meses.slice(-6),
+              datasets: [{
+                label: 'Faturamento (R$)',
+                data: fatMes.slice(-6),
+                backgroundColor: [
+                  'rgba(194,24,91,.85)', 'rgba(194,24,91,.75)', 'rgba(194,24,91,.65)',
+                  'rgba(194,24,91,.55)', 'rgba(194,24,91,.45)', 'rgba(194,24,91,.85)'
+                ],
+                borderColor: '#C2185B',
+                borderWidth: 0,
+                borderRadius: 8,
+                borderSkipped: false
+              }]
             },
-            scales: {
-              y: {
-                beginAtZero: true,
-                grid: {
-                  color: 'rgba(0,0,0,.04)'
-                },
-                ticks: {
-                  font: {
-                    size: 11
-                  }
+            options: {
+              responsive: true,
+              plugins: {
+                legend: {
+                  display: false
                 }
               },
-              x: {
-                grid: {
-                  display: false
-                },
-                ticks: {
-                  font: {
-                    size: 10
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: {
+                    color: 'rgba(0,0,0,.04)'
                   },
-                  maxTicksLimit: 10
+                  ticks: {
+                    font: {
+                      size: 11
+                    }
+                  }
+                },
+                x: {
+                  grid: {
+                    display: false
+                  },
+                  ticks: {
+                    font: {
+                      size: 11
+                    }
+                  }
                 }
               }
             }
-          }
-        });
-      }
-    });
-  </script>
+          });
+        }
+
+        /* Top 5 produtos (doughnut) */
+        const topNomes = <?= json_encode(array_column($topProdutos, 'nome_produto')) ?>;
+        const topQtds = <?= json_encode(array_column($topProdutos, 'total_vendido')) ?>;
+        const ctxProd = document.getElementById('chartProdutos');
+        if (ctxProd && topNomes.length) {
+          new Chart(ctxProd, {
+            type: 'doughnut',
+            data: {
+              labels: topNomes,
+              datasets: [{
+                data: topQtds,
+                backgroundColor: ['#C2185B', '#880E4F', '#5D4037', '#FB8C00', '#43A047'],
+                borderWidth: 3,
+                borderColor: '#fff',
+                hoverOffset: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: {
+                    padding: 12,
+                    font: {
+                      size: 11
+                    },
+                    boxWidth: 12,
+                    boxHeight: 12
+                  }
+                }
+              },
+              cutout: '65%'
+            }
+          });
+        }
+
+        /* Status dos pedidos (doughnut) */
+        const ctxStatus = document.getElementById('chartStatus');
+        if (ctxStatus) {
+          const statusLabels = <?= json_encode(array_values($statusLabels)) ?>;
+          const statusData   = <?= json_encode(array_values($contStatus)) ?>;
+          new Chart(ctxStatus, {
+            type: 'doughnut',
+            data: {
+              labels: statusLabels,
+              datasets: [{
+                data: statusData,
+                backgroundColor: ['#FB8C00','#1E88E5','#C2185B','#43A047','#E53935'],
+                borderWidth: 3,
+                borderColor: '#fff',
+                hoverOffset: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: ctx => ` ${ctx.label}: ${ctx.raw} pedidos`
+                  }
+                }
+              },
+              cutout: '65%'
+            }
+          });
+        }
+
+        /* Faturamento diário (line) */
+        const diasLabel = <?= json_encode(array_column(array_reverse($fatDiario), 'dia')) ?>;
+        const diasFat = <?= json_encode(array_column(array_reverse($fatDiario), 'faturamento')) ?>;
+        const ctxDiario = document.getElementById('chartFaturamentoDiario');
+        if (ctxDiario) {
+          new Chart(ctxDiario, {
+            type: 'line',
+            data: {
+              labels: diasLabel,
+              datasets: [{
+                label: 'Faturamento Diário (R$)',
+                data: diasFat,
+                borderColor: '#C2185B',
+                backgroundColor: 'rgba(194,24,91,.08)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#C2185B',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: {
+                  display: false
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: {
+                    color: 'rgba(0,0,0,.04)'
+                  },
+                  ticks: {
+                    font: {
+                      size: 11
+                    }
+                  }
+                },
+                x: {
+                  grid: {
+                    display: false
+                  },
+                  ticks: {
+                    font: {
+                      size: 10
+                    },
+                    maxTicksLimit: 10
+                  }
+                }
+              }
+            }
+          });
+        }
+
+      }); // fim DOMContentLoaded
+    </script>
 </body>
 
 </html>

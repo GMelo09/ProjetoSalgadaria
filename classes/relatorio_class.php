@@ -12,7 +12,7 @@ class Relatorio
                 FROM pedidos
                 WHERE DATE(criado_em) BETWEEN ? AND ?
                 AND status != 'cancelado'";
-        $banco = Banco::conectar();
+        $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$data_inicio, $data_fim]);
         $resultado = $comando->fetch(PDO::FETCH_ASSOC);
@@ -31,7 +31,31 @@ class Relatorio
                 AND status != 'cancelado'
                 GROUP BY DATE(criado_em)
                 ORDER BY dia ASC";
-        $banco = Banco::conectar();
+        $banco   = Banco::conectar();
+        $comando = $banco->prepare($sql);
+        $comando->execute([$data_inicio, $data_fim]);
+        $resultado = $comando->fetchAll(PDO::FETCH_ASSOC);
+        Banco::desconectar();
+        return $resultado;
+    }
+
+    /**
+     * Faturamento agrupado por mês — retorna mes_label formatado (ex: "Mar/25")
+     * Usado nos gráficos e tabela do dashboard.
+     */
+    public function FaturamentoPorMes($data_inicio, $data_fim)
+    {
+        $sql = "SELECT 
+                    DATE_FORMAT(criado_em, '%Y-%m') AS mes_chave,
+                    DATE_FORMAT(criado_em, '%b/%y') AS mes_label,
+                    COUNT(*) AS total_pedidos,
+                    SUM(total) AS faturamento
+                FROM pedidos
+                WHERE DATE(criado_em) BETWEEN ? AND ?
+                AND status != 'cancelado'
+                GROUP BY mes_chave, mes_label
+                ORDER BY mes_chave ASC";
+        $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$data_inicio, $data_fim]);
         $resultado = $comando->fetchAll(PDO::FETCH_ASSOC);
@@ -43,20 +67,20 @@ class Relatorio
     {
         $limite = (int) $limite;
         $sql = "SELECT 
-                pi.nome_produto,
-                pr.emoji,
-                c.nome AS categoria,
-                SUM(pi.quantidade) AS total_vendido,
-                SUM(pi.quantidade * pi.preco_unitario) AS receita_total
-            FROM pedido_itens pi
-            LEFT JOIN produtos pr ON pi.produto_id = pr.id
-            LEFT JOIN categorias c ON pr.categoria_id = c.id
-            INNER JOIN pedidos p ON pi.pedido_id = p.id
-            WHERE p.status != 'cancelado'
-            GROUP BY pi.produto_id, pi.nome_produto
-            ORDER BY total_vendido DESC
-            LIMIT $limite";
-        $banco = Banco::conectar();
+                    pi.nome_produto,
+                    pr.emoji,
+                    c.nome AS categoria,
+                    SUM(pi.quantidade) AS total_vendido,
+                    SUM(pi.quantidade * pi.preco_unitario) AS receita_total
+                FROM pedido_itens pi
+                LEFT JOIN produtos pr ON pi.produto_id = pr.id
+                LEFT JOIN categorias c ON pr.categoria_id = c.id
+                INNER JOIN pedidos p ON pi.pedido_id = p.id
+                WHERE p.status != 'cancelado'
+                GROUP BY pi.produto_id, pi.nome_produto
+                ORDER BY total_vendido DESC
+                LIMIT $limite";
+        $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute();
         $resultado = $comando->fetchAll(PDO::FETCH_ASSOC);
@@ -73,7 +97,7 @@ class Relatorio
                 FROM pedidos
                 GROUP BY status
                 ORDER BY total DESC";
-        $banco = Banco::conectar();
+        $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute();
         $resultado = $comando->fetchAll(PDO::FETCH_ASSOC);
@@ -92,7 +116,7 @@ class Relatorio
                 AND status != 'cancelado'
                 GROUP BY forma_pagamento
                 ORDER BY valor_total DESC";
-        $banco = Banco::conectar();
+        $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$data_inicio, $data_fim]);
         $resultado = $comando->fetchAll(PDO::FETCH_ASSOC);
@@ -110,7 +134,7 @@ class Relatorio
                     SUM(CASE WHEN status = 'cancelado' THEN 1 ELSE 0 END) AS cancelados
                 FROM pedidos
                 WHERE DATE(criado_em) = CURDATE()";
-        $banco = Banco::conectar();
+        $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute();
         $resultado = $comando->fetch(PDO::FETCH_ASSOC);
@@ -132,7 +156,7 @@ class Relatorio
                 AND p.status != 'cancelado'
                 GROUP BY c.id, c.nome
                 ORDER BY receita_total DESC";
-        $banco = Banco::conectar();
+        $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$data_inicio, $data_fim]);
         $resultado = $comando->fetchAll(PDO::FETCH_ASSOC);

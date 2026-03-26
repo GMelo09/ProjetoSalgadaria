@@ -45,6 +45,20 @@ function requireAdmin(): void
 }
 
 /* =============================================================
+ *  requireAdminAjax — Versão para endpoints AJAX
+ *  Em vez de redirecionar (que quebra o JSON), retorna 403 JSON.
+ * ============================================================= */
+function requireAdminAjax(): void
+{
+    if (empty($_SESSION['usuario_id']) || empty($_SESSION['eh_admin'])) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['sucesso' => false, 'mensagem' => 'Sem permissão.']);
+        exit;
+    }
+}
+
+/* =============================================================
  *  isLoggedIn — Verifica se há sessão ativa
  * ============================================================= */
 function isLoggedIn(): bool
