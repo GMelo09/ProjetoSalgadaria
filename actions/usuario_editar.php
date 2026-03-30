@@ -1,14 +1,5 @@
 <?php
-/**
- * actions/usuario_editar.php
- *
- * Correções aplicadas:
- *  1. REMOVIDO: print_r($_POST) — expunha dados sensíveis no navegador
- *  2. Validação CSRF adicionada
- *  3. Verificação de autenticação (só admin ou o próprio usuário pode editar)
- *  4. exit adicionado em todos os redirects
- *  5. id_tipo protegido — cliente comum não pode se promover a admin
- */
+
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();

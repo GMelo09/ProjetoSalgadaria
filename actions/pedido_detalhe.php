@@ -1,8 +1,5 @@
 <?php
-/**
- * actions/pedido_detalhe.php
- * Retorna o HTML com os detalhes de um pedido para exibir no modal.
- */
+
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();

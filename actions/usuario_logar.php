@@ -1,15 +1,5 @@
 <?php
-/**
- * actions/usuario_logar.php
- *
- * Correções aplicadas:
- *  1. session_start() chamado ANTES de qualquer acesso a $_SESSION
- *  2. Proteção contra força bruta (rate limiting por IP)
- *  3. Validação CSRF
- *  4. session_regenerate_id() após login — previne session fixation
- *  5. password_verify() via Usuario::Logar() — substitui SHA-256
- *  6. Sanitização com filter_input ao invés de strip_tags em campos sensíveis
- */
+
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart(); // SEMPRE antes de qualquer $_SESSION

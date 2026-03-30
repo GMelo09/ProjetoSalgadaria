@@ -211,6 +211,7 @@ class Pedido
         $comando = $banco->prepare($sql);
         $comando->execute();
         $pedidos = $comando->fetchAll(PDO::FETCH_ASSOC);
+        $comando->bindValue(':limite', (int) $limite, PDO::PARAM_INT);
         Banco::desconectar();
         return $pedidos;
     }

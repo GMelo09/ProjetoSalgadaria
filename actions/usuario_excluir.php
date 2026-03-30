@@ -1,13 +1,4 @@
 <?php
-/**
- * actions/usuario_excluir.php
- *
- * Correções aplicadas:
- *  1. Validação CSRF adicionada
- *  2. Verificação de autenticação e autorização (somente admin)
- *  3. exit adicionado no redirect de ID inválido (estava faltando)
- *  4. Proteção: admin não pode excluir a si mesmo
- */
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();

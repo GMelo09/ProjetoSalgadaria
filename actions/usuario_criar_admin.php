@@ -50,20 +50,7 @@ if ($usuario->EmailExiste($email)) {
     exit;
 }
 
-// Cadastra com o tipo escolhido pelo admin (diferente do cadastro público que é sempre tipo 2)
-$sql = "INSERT INTO usuarios (nome, email, senha, telefone, id_tipo)
-        VALUES (?, ?, ?, ?, ?)";
-$banco   = Banco::conectar();
-$comando = $banco->prepare($sql);
-$ok      = $comando->execute([
-    $nome,
-    $email,
-    password_hash($senha, PASSWORD_BCRYPT),
-    $telefone,
-    $id_tipo,
-]);
-$novo_id = $ok ? (int) $banco->lastInsertId() : 0;
-Banco::desconectar();
+$novo_id = $usuario->CriarAdmin($nome, $email, $senha, $telefone, $id_tipo);
 
 echo json_encode([
     'sucesso'  => $novo_id > 0,

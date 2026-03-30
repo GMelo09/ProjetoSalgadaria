@@ -1,9 +1,4 @@
 <?php
-/**
- * actions/alterar_status.php
- * Recebe requisição AJAX do dashboard para alterar status de um pedido.
- * Retorna JSON.
- */
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();

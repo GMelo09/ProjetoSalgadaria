@@ -1,29 +1,4 @@
 <?php
-/**
- * actions/logout.php
- *
- * Logout seguro via POST com token CSRF.
- *
- * Por que POST e não GET?
- * Um link GET pode ser acionado por uma imagem em um e-mail ou
- * em outro site (<img src="seusite.com/logout.php">), forçando
- * o logout do usuário sem ele clicar em nada. POST + CSRF elimina isso.
- *
- * Como usar no HTML (substitui todos os <a href="login.php?sair=1">):
- *
- *   <form action="/actions/logout.php" method="POST" style="display:inline;">
- *     <?= csrfField() ?>
- *     <button type="submit" class="btn-link">Sair</button>
- *   </form>
- *
- * Ou, com um link estilizado via JS:
- *
- *   <a href="#" onclick="document.getElementById('formLogout').submit()">Sair</a>
- *   <form id="formLogout" action="/actions/logout.php" method="POST" hidden>
- *     <?= csrfField() ?>
- *   </form>
- */
-
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 

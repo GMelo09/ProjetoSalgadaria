@@ -1,17 +1,5 @@
 <?php
 
-/**
- * actions/usuario_cadastrar.php
- *
- * Correções aplicadas:
- *  1. session_start() adicionado (necessário para CSRF e flash)
- *  2. Validação CSRF
- *  3. Validação de email no servidor (filter_var)
- *  4. Caminhos de redirect unificados (todos para pages/login.php)
- *  5. Parâmetro de erro unificado: sempre "erro=" (era mistura de err= e erro=)
- *  6. Validação de tamanho mínimo de senha no servidor
- *  7. Senha confirmação validada no servidor (não só no JS)
- */
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();

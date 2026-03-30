@@ -1,9 +1,4 @@
 <?php
-/**
- * actions/produto_excluir.php
- * Desativa (soft delete) um produto via AJAX do dashboard.
- * Retorna JSON.
- */
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();

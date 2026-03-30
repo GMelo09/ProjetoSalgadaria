@@ -24,11 +24,8 @@ $clientes    = $usuarioObj->ListarTodos() ?? [];
 $categorias  = $categoriaObj->ListarTodas() ?? [];
 $topProdutos = $relatorioObj->ProdutosMaisVendidos(5) ?? [];
 $fatDiario   = $relatorioObj->FaturamentoPorDia(date('Y-m-01'), date('Y-m-d')) ?? [];
-$faturMes    = $relatorioObj->FaturamentoPorMes(date('Y-01-01'), date('Y-12-31')) ?? []; // =============================================================
-//  Cole este bloco no topo do dashboard/index.php,
-//  logo após as instâncias das classes ($pedidoObj, etc.)
-//  e ANTES do array $resumo.
-// =============================================================
+$faturMes    = $relatorioObj->FaturamentoPorMes(date('Y-01-01'), date('Y-12-31')) ?? []; 
+
 
 // ── Período selecionado via GET ───────────────────────────────
 $periodoSelecionado = $_GET['periodo'] ?? 'mes';

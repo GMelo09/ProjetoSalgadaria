@@ -1,16 +1,4 @@
 <?php
-/**
- * actions/pedido_cadastrar.php
- *
- * Recebe o form do checkout e cria o pedido no banco.
- *
- * IMPORTANTE — Validação de preços no backend:
- *   O carrinho vem do localStorage (JavaScript), então o cliente
- *   pode alterar qualquer valor antes de enviar. Este arquivo
- *   IGNORA os preços enviados pelo frontend e busca os valores
- *   corretos diretamente do banco de dados pelo produto_id.
- */
-
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 

@@ -171,4 +171,21 @@ class Usuario
         Banco::desconectar();
         return $total > 0;
     }
+    // usuario_class.php — adicionar este método
+    public function CriarAdmin(string $nome, string $email, string $senha, string $telefone, int $id_tipo): int
+    {
+        $sql     = "INSERT INTO usuarios (nome, email, senha, telefone, id_tipo) VALUES (?, ?, ?, ?, ?)";
+        $banco   = Banco::conectar();
+        $comando = $banco->prepare($sql);
+        $ok      = $comando->execute([
+            $nome,
+            $email,
+            password_hash($senha, PASSWORD_BCRYPT),
+            $telefone,
+            $id_tipo,
+        ]);
+        $id = $ok ? (int) $banco->lastInsertId() : 0;
+        Banco::desconectar();
+        return $id;
+    }
 }

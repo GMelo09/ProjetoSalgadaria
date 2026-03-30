@@ -1,9 +1,4 @@
 <?php
-/**
- * actions/cliente_bloquear.php
- * Recebe requisição AJAX do dashboard para bloquear/desbloquear cliente.
- * Retorna JSON.
- */
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
