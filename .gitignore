@@ -1,0 +1,88 @@
+# ============================
+# CONFIGURAÇÕES SENSÍVEIS
+# ============================
+config/config.php
+
+# ============================
+# UPLOADS DE USUÁRIOS
+# ============================
+uploads/
+uploads/produtos/
+
+# ============================
+# DEPENDÊNCIAS E PACOTES
+# ============================
+vendor/
+node_modules/
+
+# ============================
+# VARIÁVEIS DE AMBIENTE
+# ============================
+.env
+.env.local
+.env.*.local
+
+# ============================
+# LOGS E CACHE
+# ============================
+*.log
+logs/
+cache/
+tmp/
+temp/
+
+# ============================
+# SISTEMA OPERACIONAL
+# ============================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+
+# ============================
+# EDITORES E IDEs
+# ============================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# PhpStorm / JetBrains
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================
+# PHP
+# ============================
+*.cache
+*.sess_*
+
+# ============================
+# BANCO DE DADOS
+# ============================
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# ============================
+# ARQUIVOS COMPACTADOS
+# ============================
+*.zip
+*.tar.gz
+*.rar
