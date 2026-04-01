@@ -8,13 +8,14 @@ class Produto
     public $descricao;
     public $preco;
     public $emoji;
+    public $imagem = null; // nome do arquivo em uploads/produtos/
     public $tag;
-    public $ativo = 1; // novo campo — padrão ativo
+    public $ativo = 1;
 
     public function Criar()
     {
-        $sql = "INSERT INTO produtos (categoria_id, nome, descricao, preco, emoji, tag, ativo)
-                VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO produtos (categoria_id, nome, descricao, preco, emoji, imagem, tag, ativo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([
@@ -23,6 +24,7 @@ class Produto
             $this->descricao,
             $this->preco,
             $this->emoji,
+            $this->imagem,
             $this->tag,
             $this->ativo,
         ]);
@@ -33,25 +35,45 @@ class Produto
 
     public function Editar($id_produto)
     {
-        $sql = "UPDATE produtos SET categoria_id = ?, nome = ?, descricao = ?, preco = ?, emoji = ?, tag = ?, ativo = ?
-                WHERE id = ?";
+        // Se $this->imagem for null, nao altera a coluna imagem no banco
+        if ($this->imagem !== null) {
+            $sql = "UPDATE produtos
+                    SET categoria_id = ?, nome = ?, descricao = ?, preco = ?, emoji = ?, imagem = ?, tag = ?, ativo = ?
+                    WHERE id = ?";
+            $params = [
+                $this->categoria_id,
+                $this->nome,
+                $this->descricao,
+                $this->preco,
+                $this->emoji,
+                $this->imagem,
+                $this->tag,
+                $this->ativo,
+                $id_produto,
+            ];
+        } else {
+            $sql = "UPDATE produtos
+                    SET categoria_id = ?, nome = ?, descricao = ?, preco = ?, emoji = ?, tag = ?, ativo = ?
+                    WHERE id = ?";
+            $params = [
+                $this->categoria_id,
+                $this->nome,
+                $this->descricao,
+                $this->preco,
+                $this->emoji,
+                $this->tag,
+                $this->ativo,
+                $id_produto,
+            ];
+        }
+
         $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
-        $comando->execute([
-            $this->categoria_id,
-            $this->nome,
-            $this->descricao,
-            $this->preco,
-            $this->emoji,
-            $this->tag,
-            $this->ativo,
-            $id_produto,
-        ]);
+        $comando->execute($params);
         Banco::desconectar();
         return $comando->rowCount();
     }
 
-    // Soft delete — desativa em vez de deletar
     public function Excluir($id_produto)
     {
         $sql     = "UPDATE produtos SET ativo = 0 WHERE id = ?";
@@ -90,7 +112,6 @@ class Produto
         return $produtos;
     }
 
-    // Listagem pública — só produtos ativos
     public function ListarPorCategoria($id_categoria)
     {
         $sql = "SELECT p.*, c.nome AS categoria_nome

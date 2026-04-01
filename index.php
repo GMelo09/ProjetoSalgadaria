@@ -133,7 +133,13 @@ $doces      = array_slice($produtoObj->ListarPorCategoria(2), 0, 4);
           <div class="product-card">
             <div class="product-card-image">
               <div class="product-card-placeholder" style="background:linear-gradient(135deg,#EFEBE9,#D7CCC8);">
-                <?= $p['emoji'] ?>
+                <?php if (!empty($p['imagem'])): ?>
+                  <img src="uploads/produtos/<?= htmlspecialchars($p['imagem']) ?>"
+                       alt="<?= htmlspecialchars($p['nome']) ?>"
+                       >
+                <?php else: ?>
+                  <?= $p['emoji'] ?>
+                <?php endif; ?>
               </div>
               <span class="product-badge badge-salgado">Salgado</span>
             </div>
@@ -213,7 +219,13 @@ $doces      = array_slice($produtoObj->ListarPorCategoria(2), 0, 4);
           <div class="product-card">
             <div class="product-card-image">
               <div class="product-card-placeholder" style="background:linear-gradient(135deg,#FCE4EC,#F8BBD0);">
-                <?= $p['emoji'] ?>
+                <?php if (!empty($p['imagem'])): ?>
+                  <img src="uploads/produtos/<?= htmlspecialchars($p['imagem']) ?>"
+                       alt="<?= htmlspecialchars($p['nome']) ?>"
+                       >
+                <?php else: ?>
+                  <?= $p['emoji'] ?>
+                <?php endif; ?>
               </div>
               <span class="product-badge badge-doce">Doce</span>
             </div>

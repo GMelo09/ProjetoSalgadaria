@@ -530,7 +530,7 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             <thead>
               <tr>
                 <th>#</th>
-                <th>Emoji</th>
+                <th>Foto</th>
                 <th>Nome</th>
                 <th>Categoria</th>
                 <th>Tag</th>
@@ -543,7 +543,17 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
               <?php foreach ($produtos as $prod): ?>
                 <tr>
                   <td><span style="color:var(--muted);font-size:.8rem;"><?= (int)$prod['id'] ?></span></td>
-                  <td style="font-size:1.4rem;"><?= htmlspecialchars($prod['emoji'] ?? '') ?></td>
+                  <td>
+                    <?php if (!empty($prod['imagem'])): ?>
+                      <img src="../uploads/produtos/<?= htmlspecialchars($prod['imagem']) ?>"
+                           alt="<?= htmlspecialchars($prod['nome']) ?>"
+                           style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--cream);">
+                    <?php else: ?>
+                      <span style="font-size:1.4rem;display:inline-block;width:42px;height:42px;line-height:42px;text-align:center;">
+                        <?= htmlspecialchars($prod['emoji'] ?? '📦') ?>
+                      </span>
+                    <?php endif; ?>
+                  </td>
                   <td><strong><?= htmlspecialchars($prod['nome']) ?></strong></td>
                   <td>
                     <span style="background:var(--choco-pale);color:var(--choco);padding:.2rem .65rem;border-radius:50px;font-size:.75rem;font-weight:600;">
@@ -1036,22 +1046,42 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <form id="formProduto" action="actions/produto_salvar.php" method="POST">
+            <form id="formProduto" action="actions/produto_salvar.php" method="POST" enctype="multipart/form-data">
               <input type="hidden" name="id" id="produtoId">
+
+              <!-- Preview da imagem atual -->
+              <div id="produtoImagemWrap" style="display:none;text-align:center;margin-bottom:1rem;">
+                <img id="produtoImagemPreview" src="" alt="preview"
+                  style="max-height:140px;max-width:100%;border-radius:10px;object-fit:cover;border:1px solid var(--cream);">
+                <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem;">Imagem atual</div>
+              </div>
+
+              <!-- Upload de imagem -->
+              <div class="form-group">
+                <label class="form-label"><i class="bi bi-image"></i> Foto do Produto</label>
+                <input type="file" class="form-control" name="imagem" id="produtoImagem"
+                  accept="image/jpeg,image/png,image/gif,image/webp">
+                <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem;">
+                  JPG, PNG, GIF ou WEBP · máx. 5 MB · deixe em branco para manter a foto atual
+                </div>
+              </div>
+
               <div class="form-row">
                 <div class="form-group" style="flex:2;">
                   <label class="form-label">Nome <span class="required">*</span></label>
                   <input type="text" class="form-control" name="nome" id="produtoNome" required maxlength="100">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Emoji</label>
+                  <label class="form-label">Emoji <span style="font-size:.75rem;color:var(--muted);">(fallback)</span></label>
                   <input type="text" class="form-control" name="emoji" id="produtoEmoji" maxlength="10" placeholder="🍗">
                 </div>
               </div>
+
               <div class="form-group">
                 <label class="form-label">Descrição</label>
                 <textarea class="form-control" name="descricao" id="produtoDescricao" rows="2" maxlength="300"></textarea>
               </div>
+
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">Categoria <span class="required">*</span></label>
@@ -1063,9 +1093,13 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
                 </div>
                 <div class="form-group">
                   <label class="form-label">Tag</label>
-                  <input type="text" class="form-control" name="tag" id="produtoTag" maxlength="30" placeholder="Clássico">
+                  <!-- Select dinâmico: opções mudam conforme a categoria -->
+                  <select class="form-control" name="tag" id="produtoTag">
+                    <!-- preenchido por JS -->
+                  </select>
                 </div>
               </div>
+
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">Preço (R$) <span class="required">*</span></label>
@@ -1078,6 +1112,7 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
                   </div>
                 </div>
               </div>
+
               <button type="submit" class="btn btn-primary btn-full btn-lg">
                 <i class="bi bi-check2-circle"></i> Salvar Produto
               </button>
@@ -1201,20 +1236,69 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
         new bootstrap.Modal(document.getElementById('modalStatus')).show();
       }
 
+      /* ── Tags disponíveis por categoria ── */
+      const _tagsPorCategoria = {
+        1: ['Clássico', 'Frito', 'Assado', 'Premium', 'Vegetariano', 'Especial'],
+        2: ['Clássico', 'Premium', 'Especial', 'Fruta']
+      };
+
+      function _atualizarTagsPorCategoria(catId, tagAtual) {
+        const select = document.getElementById('produtoTag');
+        const tags   = _tagsPorCategoria[parseInt(catId)] || ['Clássico'];
+        select.innerHTML = tags.map(t =>
+          `<option value="${t}"${t === tagAtual ? ' selected' : ''}>${t}</option>`
+        ).join('');
+      }
+
       /* ── Modal de produto ── */
       function abrirModalProduto(prod = null) {
         document.getElementById('modalProdutoTitulo').textContent =
           prod ? '✏️ Editar Produto' : '➕ Novo Produto';
-        document.getElementById('produtoId').value = prod?.id ?? '';
-        document.getElementById('produtoNome').value = prod?.nome ?? '';
-        document.getElementById('produtoEmoji').value = prod?.emoji ?? '';
+        document.getElementById('produtoId').value        = prod?.id ?? '';
+        document.getElementById('produtoNome').value      = prod?.nome ?? '';
+        document.getElementById('produtoEmoji').value     = prod?.emoji ?? '';
         document.getElementById('produtoDescricao').value = prod?.descricao ?? '';
-        document.getElementById('produtoCat').value = prod?.categoria_id ?? '1';
-        document.getElementById('produtoTag').value = prod?.tag ?? '';
-        document.getElementById('produtoPreco').value = prod?.preco ?? '';
-        document.getElementById('produtoAtivo').checked = prod ? prod.ativo == 1 : true;
+        document.getElementById('produtoCat').value       = prod?.categoria_id ?? '1';
+        document.getElementById('produtoPreco').value     = prod?.preco ?? '';
+        document.getElementById('produtoAtivo').checked   = prod ? prod.ativo == 1 : true;
+
+        // Preenche o select de tags conforme a categoria atual
+        _atualizarTagsPorCategoria(prod?.categoria_id ?? 1, prod?.tag ?? 'Clássico');
+
+        // Preview da imagem existente
+        const wrap    = document.getElementById('produtoImagemWrap');
+        const preview = document.getElementById('produtoImagemPreview');
+        const fileInput = document.getElementById('produtoImagem');
+        fileInput.value = ''; // limpa seleção anterior
+        if (prod?.imagem) {
+          preview.src     = `../uploads/produtos/${prod.imagem}`;
+          wrap.style.display = '';
+        } else {
+          wrap.style.display = 'none';
+          preview.src = '';
+        }
+
         new bootstrap.Modal(document.getElementById('modalProduto')).show();
       }
+
+      /* Atualiza tags ao mudar categoria no modal */
+      document.getElementById('produtoCat').addEventListener('change', function() {
+        _atualizarTagsPorCategoria(this.value, '');
+      });
+
+      /* Preview ao selecionar nova imagem */
+      document.getElementById('produtoImagem').addEventListener('change', function() {
+        const wrap    = document.getElementById('produtoImagemWrap');
+        const preview = document.getElementById('produtoImagemPreview');
+        if (this.files && this.files[0]) {
+          const reader = new FileReader();
+          reader.onload = e => {
+            preview.src        = e.target.result;
+            wrap.style.display = '';
+          };
+          reader.readAsDataURL(this.files[0]);
+        }
+      });
 
       /* ── Excluir produto ── */
       function excluirProduto(id, nome) {

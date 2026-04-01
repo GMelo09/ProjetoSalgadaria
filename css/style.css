@@ -420,10 +420,12 @@ h1,h2,h3,h4,h5 {
   box-shadow: var(--shadow-lg);
 }
 .product-card-image {
-  position: relative;
+  position: relative;   /* ancora o placeholder absoluto */
   aspect-ratio: 4/3;
   overflow: hidden;
   background: var(--choco-pale);
+  /* min-height garante que o container nao colapse em contextos flex */
+  min-height: 140px;
 }
 .product-card-image img {
   width: 100%;
@@ -435,12 +437,29 @@ h1,h2,h3,h4,h5 {
   transform: scale(1.07);
 }
 .product-card-placeholder {
-  width: 100%;
-  height: 100%;
+  /* Preenche o .product-card-image absolutamente — funciona mesmo
+     quando o pai usa aspect-ratio em vez de height explicita */
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 3.5rem;
+  overflow: hidden;
+}
+/* Imagem real do produto: ocupa 100% do placeholder */
+.product-card-placeholder img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  max-width: none;
+  display: block;
+  transition: transform .6s ease;
+}
+.product-card:hover .product-card-placeholder img {
+  transform: scale(1.07);
 }
 .product-badge {
   position: absolute;

@@ -5,6 +5,10 @@ sessionStart();
 
 $produtoObj = new Produto();
 $produtos   = $produtoObj->ListarPorCategoria(2);
+
+// Extrai tags únicas dos produtos para gerar os filtros dinamicamente
+$tags_disponiveis = array_values(array_unique(array_filter(array_column($produtos, 'tag'))));
+sort($tags_disponiveis);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -47,9 +51,7 @@ $produtos   = $produtoObj->ListarPorCategoria(2);
               <ul class="dropdown-menu dropdown-menu-end">
                 <?php if (!empty($_SESSION['eh_admin'])): ?>
                   <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
-                  <li>
-                    <hr class="dropdown-divider">
-                  </li>
+                  <li><hr class="dropdown-divider"></li>
                 <?php endif; ?>
                 <li>
                   <form action="../actions/logout.php" method="POST" style="margin:0;">
@@ -86,15 +88,16 @@ $produtos   = $produtoObj->ListarPorCategoria(2);
     </div>
   </div>
 
-  <!-- ═══════════════ FILTER BAR ═══════════════ -->
+  <!-- ═══════════════ FILTER BAR (dinâmica) ═══════════════ -->
   <div class="filter-bar">
     <div class="container">
       <span class="filter-label">Filtrar:</span>
       <button class="filter-chip active" data-filter="all">Todos</button>
-      <button class="filter-chip" data-filter="Clássico">Clássico</button>
-      <button class="filter-chip" data-filter="Premium">Premium</button>
-      <button class="filter-chip" data-filter="Especial">Especial</button>
-      <button class="filter-chip" data-filter="Fruta">Fruta</button>
+      <?php foreach ($tags_disponiveis as $tag): ?>
+        <button class="filter-chip" data-filter="<?= htmlspecialchars($tag) ?>">
+          <?= htmlspecialchars($tag) ?>
+        </button>
+      <?php endforeach; ?>
     </div>
   </div>
 
@@ -103,12 +106,21 @@ $produtos   = $produtoObj->ListarPorCategoria(2);
     <div class="container">
       <div class="grid-4" id="productsGrid">
         <?php foreach ($produtos as $p): ?>
-          <div class="product-card" data-tag="<?= htmlspecialchars($p['tag']) ?>">
+          <div class="product-card" data-tag="<?= htmlspecialchars($p['tag'] ?? '') ?>">
             <div class="product-card-image">
               <div class="product-card-placeholder" style="background:linear-gradient(135deg,#FCE4EC,#F8BBD0);">
-                <?= $p['emoji'] ?>
+                <?php if (!empty($p['imagem'])): ?>
+                  <img
+                    src="../uploads/produtos/<?= htmlspecialchars($p['imagem']) ?>"
+                    alt="<?= htmlspecialchars($p['nome']) ?>"
+                    >
+                <?php else: ?>
+                  <?= $p['emoji'] ?>
+                <?php endif; ?>
               </div>
-              <span class="product-badge badge-doce"><?= htmlspecialchars($p['tag']) ?></span>
+              <?php if (!empty($p['tag'])): ?>
+                <span class="product-badge badge-doce"><?= htmlspecialchars($p['tag']) ?></span>
+              <?php endif; ?>
             </div>
             <div class="product-card-body">
               <div class="product-name"><?= htmlspecialchars($p['nome']) ?></div>
@@ -131,6 +143,13 @@ $produtos   = $produtoObj->ListarPorCategoria(2);
             </div>
           </div>
         <?php endforeach; ?>
+
+        <?php if (empty($produtos)): ?>
+          <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted);">
+            <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
+            Nenhum doce disponível no momento.
+          </div>
+        <?php endif; ?>
       </div>
     </div>
   </section>
@@ -188,6 +207,7 @@ $produtos   = $produtoObj->ListarPorCategoria(2);
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="../js/app.js"></script>
   <script>
+    // Filtros dinâmicos — funcionam com qualquer tag que vier do banco
     document.querySelectorAll('.filter-chip').forEach(chip => {
       chip.addEventListener('click', function() {
         document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
