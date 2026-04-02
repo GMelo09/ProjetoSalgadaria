@@ -23,6 +23,125 @@ $pacotes = [
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="../css/style.css" rel="stylesheet">
+<style>
+/* ── Barra de incremento ── */
+.pkg-step-bar {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .55rem 1rem;
+  border-bottom: 1px solid #f0e8e8;
+  background: #fff9fb;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.pkg-step-label {
+  font-size: .72rem;
+  color: #aaa;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-right: .15rem;
+}
+.step-btn {
+  background: #f8f0f4;
+  border: 1.5px solid #e8d0da;
+  border-radius: 20px;
+  padding: .22rem .65rem;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--rose, #c2185b);
+  cursor: pointer;
+  transition: all .15s;
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+}
+.step-btn:hover, .step-btn.active {
+  background: var(--rose, #c2185b);
+  color: white;
+  border-color: var(--rose, #c2185b);
+}
+.step-btn-action { background:#fff3e0; color:#e65100; border-color:#ffcc80; }
+.step-btn-action:hover { background:#e65100; color:white; border-color:#e65100; }
+.step-btn-reset  { background:#f5f5f5; color:#888; border-color:#ddd; }
+.step-btn-reset:hover  { background:#888; color:white; border-color:#888; }
+.pkg-step-div { width:1px; height:20px; background:#eee; margin: 0 .15rem; }
+
+/* ── flavor-item com qty ── */
+.flavor-item {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .5rem .4rem;
+  border-radius: 8px;
+  border-bottom: 1px solid #fdf0f5;
+  transition: background .15s;
+}
+.flavor-item:hover { background: #fff5f8; }
+.flavor-item:last-child { border-bottom: none; }
+.flavor-name  { flex: 1; font-size: .88rem; color: #444; font-weight: 500; }
+.flavor-price { font-size: .78rem; color: #bbb; min-width: 58px; text-align: right; }
+
+/* ── Controle de quantidade ── */
+.qty-control {
+  display: flex;
+  align-items: center;
+  background: #f8f0f4;
+  border: 1.5px solid #e8d0da;
+  border-radius: 25px;
+  overflow: hidden;
+  transition: border-color .2s;
+  flex-shrink: 0;
+}
+.qty-control.has-qty { background: #fce4ec; border-color: var(--rose, #c2185b); }
+.qty-btn {
+  background: none;
+  border: none;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--rose, #c2185b);
+  font-size: 1rem; font-weight: 700;
+  transition: background .15s, color .15s;
+}
+.qty-btn:hover { background: var(--rose, #c2185b); color: white; }
+.qty-btn:disabled { color: #ccc !important; cursor: not-allowed; }
+.qty-btn:disabled:hover { background: none; }
+.qty-input {
+  width: 38px; height: 28px;
+  border: none; background: none;
+  text-align: center;
+  font-size: .85rem; font-weight: 700;
+  color: var(--rose, #c2185b);
+  outline: none;
+  -moz-appearance: textfield;
+}
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* ── Barra de resumo ── */
+.pkg-summary-bar {
+  background: linear-gradient(135deg, #880e4f, #c2185b);
+  padding: .7rem 1.2rem;
+  flex-shrink: 0;
+}
+.pkg-summary-stats { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.pkg-stat { font-size: .75rem; color: rgba(255,255,255,.75); }
+.pkg-stat strong { display: block; font-size: .95rem; color: white; margin-top: 1px; }
+.pkg-progress-wrap {
+  background: rgba(255,255,255,.25);
+  border-radius: 4px; height: 4px; width: 100px;
+  margin-top: 4px; overflow: hidden;
+}
+.pkg-progress-fill { height: 100%; background: white; border-radius: 4px; transition: width .3s; }
+
+/* ── Animação de erro ── */
+.pkg-shake { animation: pkgShake .3s ease; }
+@keyframes pkgShake {
+  0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)}
+}
+</style>
 </head>
 <body>
 
@@ -143,47 +262,117 @@ $pacotes = [
 
 <div class="modal-overlay" id="packageModal">
   <div class="modal-box">
+
+    <!-- Cabeçalho -->
     <div class="modal-header">
       <h5><i class="bi bi-box-seam"></i> Montar Pacote de <span id="modalQtd">0</span> unidades</h5>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
+
+    <!-- Info bar -->
+    <div class="info-bar">
+      <i class="bi bi-info-circle"></i>
+      Selecione até <strong><span id="modalMaxSabores">0</span> sabores</strong>.
+      &nbsp;Selecionados: <strong id="modalContador" style="color:var(--rose);">0</strong>
+      &nbsp;|&nbsp; Unidades distribuídas: <strong id="totalUnidades">0</strong> / <strong id="totalMax">0</strong>
+    </div>
+
+    <!-- Botões de incremento -->
+    <div class="pkg-step-bar">
+      <span class="pkg-step-label">Incremento:</span>
+      <button class="step-btn active" data-step="1"
+        onclick="PackageModal.setStep(1); document.querySelectorAll('.step-btn[data-step]').forEach(b=>b.classList.remove('active')); this.classList.add('active');">+1</button>
+      <button class="step-btn" data-step="5"
+        onclick="PackageModal.setStep(5); document.querySelectorAll('.step-btn[data-step]').forEach(b=>b.classList.remove('active')); this.classList.add('active');">+5</button>
+      <button class="step-btn" data-step="10"
+        onclick="PackageModal.setStep(10); document.querySelectorAll('.step-btn[data-step]').forEach(b=>b.classList.remove('active')); this.classList.add('active');">+10</button>
+      <button class="step-btn" data-step="25"
+        onclick="PackageModal.setStep(25); document.querySelectorAll('.step-btn[data-step]').forEach(b=>b.classList.remove('active')); this.classList.add('active');">+25</button>
+      <div class="pkg-step-div"></div>
+      <button class="step-btn step-btn-action"
+        onclick="PackageModal.distribuirIgual()">
+        <i class="bi bi-distribute-horizontal"></i> Distribuir igual
+      </button>
+      <button class="step-btn step-btn-reset"
+        onclick="PackageModal.zerarQtds()">
+        <i class="bi bi-arrow-counterclockwise"></i> Zerar
+      </button>
+    </div>
+
+    <!-- Lista de sabores -->
     <div class="modal-body">
-      <div class="info-bar">
-        <i class="bi bi-info-circle"></i>
-        Selecione até <strong><span id="modalMaxSabores">0</span> sabores</strong>.
-        Selecionados: <strong id="modalContador" style="color:var(--rose);">0</strong>
-      </div>
       <div class="flavor-section">
         <h6><i class="bi bi-egg-fried"></i> Salgados</h6>
         <?php foreach ($salgados as $s): ?>
-          <div class="flavor-item">
-            <input type="checkbox" class="flavor-check" id="fs<?= $s['id'] ?>"
-              value="<?= $s['id'] ?>" data-nome="<?= htmlspecialchars($s['nome']) ?>"
-              data-preco="<?= $s['preco'] ?>" onchange="updateFlavorCount()">
-            <label for="fs<?= $s['id'] ?>"><?= htmlspecialchars($s['nome']) ?></label>
-            <span style="font-size:.82rem;color:var(--muted);">R$ <?= number_format($s['preco'], 2, ',', '.') ?></span>
+          <div class="flavor-item flavor-row"
+               data-id="<?= $s['id'] ?>"
+               data-nome="<?= htmlspecialchars($s['nome']) ?>"
+               data-preco="<?= $s['preco'] ?>">
+            <span class="flavor-name"><?= htmlspecialchars($s['nome']) ?></span>
+            <span class="flavor-price">R$ <?= number_format($s['preco'], 2, ',', '.') ?></span>
+            <div class="qty-control" id="qc-<?= $s['id'] ?>">
+              <button class="qty-btn btn-minus"
+                onclick="PackageModal.changeQty(<?= $s['id'] ?>, -PackageModal.currentStep)">−</button>
+              <input type="number" class="qty-input" id="qi-<?= $s['id'] ?>" value="0" min="0"
+                oninput="PackageModal.onManualInput(<?= $s['id'] ?>, this.value)"
+                onblur="PackageModal.onBlur(<?= $s['id'] ?>, this.value)">
+              <button class="qty-btn btn-plus" id="plus-<?= $s['id'] ?>"
+                onclick="PackageModal.changeQty(<?= $s['id'] ?>, PackageModal.currentStep)">+</button>
+            </div>
           </div>
         <?php endforeach; ?>
       </div>
+
       <div class="flavor-section">
         <h6><i class="bi bi-cup-hot"></i> Doces</h6>
         <?php foreach ($doces as $d): ?>
-          <div class="flavor-item">
-            <input type="checkbox" class="flavor-check" id="fd<?= $d['id'] ?>"
-              value="<?= $d['id'] ?>" data-nome="<?= htmlspecialchars($d['nome']) ?>"
-              data-preco="<?= $d['preco'] ?>" onchange="updateFlavorCount()">
-            <label for="fd<?= $d['id'] ?>"><?= htmlspecialchars($d['nome']) ?></label>
-            <span style="font-size:.82rem;color:var(--muted);">R$ <?= number_format($d['preco'], 2, ',', '.') ?></span>
+          <div class="flavor-item flavor-row"
+               data-id="<?= $d['id'] ?>"
+               data-nome="<?= htmlspecialchars($d['nome']) ?>"
+               data-preco="<?= $d['preco'] ?>">
+            <span class="flavor-name"><?= htmlspecialchars($d['nome']) ?></span>
+            <span class="flavor-price">R$ <?= number_format($d['preco'], 2, ',', '.') ?></span>
+            <div class="qty-control" id="qc-<?= $d['id'] ?>">
+              <button class="qty-btn btn-minus"
+                onclick="PackageModal.changeQty(<?= $d['id'] ?>, -PackageModal.currentStep)">−</button>
+              <input type="number" class="qty-input" id="qi-<?= $d['id'] ?>" value="0" min="0"
+                oninput="PackageModal.onManualInput(<?= $d['id'] ?>, this.value)"
+                onblur="PackageModal.onBlur(<?= $d['id'] ?>, this.value)">
+              <button class="qty-btn btn-plus" id="plus-<?= $d['id'] ?>"
+                onclick="PackageModal.changeQty(<?= $d['id'] ?>, PackageModal.currentStep)">+</button>
+            </div>
           </div>
         <?php endforeach; ?>
       </div>
     </div>
+
+    <!-- Barra de resumo -->
+    <div class="pkg-summary-bar">
+      <div class="pkg-summary-stats">
+        <div class="pkg-stat">
+          <span>Sabores</span>
+          <strong id="sbSabores">0 / 0</strong>
+        </div>
+        <div class="pkg-stat">
+          <span>Unidades</span>
+          <strong id="sbUnidades">0 / 0</strong>
+          <div class="pkg-progress-wrap"><div class="pkg-progress-fill" id="pkgProgressBar" style="width:0%"></div></div>
+        </div>
+        <div class="pkg-stat">
+          <span>Preço médio/un</span>
+          <strong id="sbPreco">R$ 0,00</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rodapé -->
     <div class="modal-footer">
       <button class="btn btn-choco" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="addPackageToCart()">
+      <button class="btn btn-primary" id="btnAddPackage" onclick="PackageModal.addToCart()" disabled>
         <i class="bi bi-cart-plus"></i> Adicionar ao Carrinho
       </button>
     </div>
+
   </div>
 </div>
 
@@ -229,61 +418,5 @@ $pacotes = [
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../js/app.js"></script>
-<script>
-let currentQtd = 0, currentMax = 0;
-
-function openPackageModal(qtd, max) {
-  currentQtd = qtd;
-  currentMax = max;
-  document.getElementById('modalQtd').textContent = qtd;
-  document.getElementById('modalMaxSabores').textContent = max;
-  document.getElementById('modalContador').textContent = '0';
-  document.querySelectorAll('.flavor-check').forEach(c => { c.checked = false; c.disabled = false; });
-  document.getElementById('packageModal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeModal() {
-  document.getElementById('packageModal').classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-document.getElementById('packageModal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeModal();
-});
-
-function updateFlavorCount() {
-  const n = document.querySelectorAll('.flavor-check:checked').length;
-  document.getElementById('modalContador').textContent = n;
-  document.querySelectorAll('.flavor-check').forEach(c => {
-    if (!c.checked) c.disabled = n >= currentMax;
-  });
-}
-
-function addPackageToCart() {
-  const checked = [...document.querySelectorAll('.flavor-check:checked')];
-  if (checked.length === 0) {
-    Swal.fire({ toast:true, position:'top-end', icon:'warning', title:'Selecione ao menos um sabor!',
-      showConfirmButton:false, timer:2500, timerProgressBar:true });
-    return;
-  }
-
-  const nomes      = checked.map(c => c.dataset.nome);
-  const precoMedio = checked.reduce((s, c) => s + parseFloat(c.dataset.preco), 0) / checked.length;
-
-  Cart.add({
-    id: 'pacote-' + Date.now(),
-    nome: `Pacote ${currentQtd}un (${nomes.join(', ')})`,
-    preco: precoMedio,
-    quantidade: currentQtd,
-    tipo_pacote: currentQtd,
-  });
-
-  closeModal();
-  Swal.fire({ toast:true, position:'top-end', icon:'success',
-    title: `📦 Pacote de ${currentQtd} unidades adicionado!`,
-    showConfirmButton:false, timer:2500, timerProgressBar:true });
-}
-</script>
 </body>
 </html>
