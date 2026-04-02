@@ -2,7 +2,6 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../classes/produto_class.php';
 sessionStart();
-$navAtivo = 'carrinho';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -16,7 +15,6 @@ $navAtivo = 'carrinho';
 </head>
 <body>
 
-<!-- ═══════════════ NAVBAR ═══════════════ -->
 <header>
   <nav class="navbar-main">
     <div class="container">
@@ -35,21 +33,28 @@ $navAtivo = 'carrinho';
           </a>
         </li>
         <?php if (!empty($_SESSION['usuario_nome'])): ?>
-        <li class="dropdown">
-          <a href="#" data-bs-toggle="dropdown" role="button">
-            <i class="bi bi-person-circle"></i> <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
-            <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
-          </a>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <?php if (!empty($_SESSION['eh_admin'])): ?>
-            <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <?php endif; ?>
-            <li><a class="dropdown-item" href="login.php?sair=1"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
-          </ul>
-        </li>
+          <li class="dropdown">
+            <a href="#" data-bs-toggle="dropdown" role="button">
+              <i class="bi bi-person-circle"></i> <?= htmlspecialchars($_SESSION['usuario_nome']) ?>
+              <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <?php if (!empty($_SESSION['eh_admin'])): ?>
+                <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
+                <li><hr class="dropdown-divider"></li>
+              <?php endif; ?>
+              <li>
+                <form action="../actions/logout.php" method="POST" style="margin:0;">
+                  <?= csrfField() ?>
+                  <button type="submit" class="dropdown-item" style="background:none;border:none;width:100%;text-align:left;">
+                    <i class="bi bi-box-arrow-right"></i> Sair
+                  </button>
+                </form>
+              </li>
+            </ul>
+          </li>
         <?php else: ?>
-        <li><a href="login.php"><i class="bi bi-person"></i> Entrar</a></li>
+          <li><a href="login.php"><i class="bi bi-person"></i> Entrar</a></li>
         <?php endif; ?>
       </ul>
       <button class="navbar-toggler-main" id="navToggler" aria-label="Menu">
@@ -59,14 +64,11 @@ $navAtivo = 'carrinho';
   </nav>
 </header>
 
-<!-- ═══════════════ PROGRESS ═══════════════ -->
 <div class="page-header" style="background:linear-gradient(135deg,var(--rose-dark),var(--rose));">
   <div class="container">
     <div class="breadcrumb">
-      <a href="../index.php">Início</a>
-      <span>/</span>
-      <a href="carrinho.php">Carrinho</a>
-      <span>/</span>
+      <a href="../index.php">Início</a><span>/</span>
+      <a href="carrinho.php">Carrinho</a><span>/</span>
       <span>Finalizar Pedido</span>
     </div>
     <h1>✅ Finalizar Pedido</h1>
@@ -74,7 +76,6 @@ $navAtivo = 'carrinho';
   </div>
 </div>
 
-<!-- Progress bar -->
 <div style="background:var(--white);border-bottom:1px solid var(--cream-dark);padding:.75rem 0;">
   <div class="container">
     <div style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;font-weight:600;">
@@ -87,12 +88,10 @@ $navAtivo = 'carrinho';
   </div>
 </div>
 
-<!-- ═══════════════ FORM + SUMMARY ═══════════════ -->
 <section class="section">
   <div class="container">
     <div id="checkoutLayout">
 
-      <!-- Form -->
       <div class="checkout-form">
         <h4><i class="bi bi-person-lines-fill"></i> Dados para Entrega</h4>
         <form id="checkoutForm" action="../actions/pedido_cadastrar.php" method="POST">
@@ -100,21 +99,21 @@ $navAtivo = 'carrinho';
           <input type="hidden" id="itensInput" name="itens_carrinho">
 
           <?php if (!empty($_SESSION['usuario_id'])): ?>
-          <input type="hidden" name="usuario_id" value="<?= (int) $_SESSION['usuario_id'] ?>">
+            <input type="hidden" name="usuario_id" value="<?= (int) $_SESSION['usuario_id'] ?>">
           <?php endif; ?>
 
           <div class="form-group">
             <label class="form-label">Nome Completo <span class="required">*</span></label>
             <input type="text" class="form-control" name="nome" required maxlength="100"
-                   placeholder="Seu nome completo"
-                   value="<?= htmlspecialchars($_SESSION['usuario_nome'] ?? '') ?>">
+              placeholder="Seu nome completo"
+              value="<?= htmlspecialchars($_SESSION['usuario_nome'] ?? '') ?>">
           </div>
 
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Telefone / WhatsApp <span class="required">*</span></label>
               <input type="tel" class="form-control" name="telefone" id="telInput" required
-                     maxlength="20" placeholder="(11) 99999-9999">
+                maxlength="20" placeholder="(11) 99999-9999">
             </div>
             <div class="form-group">
               <label class="form-label">E-mail (opcional)</label>
@@ -125,19 +124,19 @@ $navAtivo = 'carrinho';
           <div class="form-group">
             <label class="form-label">Endereço Completo <span class="required">*</span></label>
             <textarea class="form-control" name="endereco" rows="3" required maxlength="500"
-                      placeholder="Rua, número, bairro, complemento, cidade/UF"></textarea>
+              placeholder="Rua, número, bairro, complemento, cidade/UF"></textarea>
           </div>
 
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Data de Entrega <span class="required">*</span></label>
               <input type="date" class="form-control" name="data_entrega" required
-                     min="<?= date('Y-m-d', strtotime('+1 day')) ?>">
+                min="<?= date('Y-m-d', strtotime('+1 day')) ?>">
             </div>
             <div class="form-group">
               <label class="form-label">Observações</label>
               <input type="text" class="form-control" name="obs" maxlength="300"
-                     placeholder="Alguma instrução especial?">
+                placeholder="Alguma instrução especial?">
             </div>
           </div>
 
@@ -174,7 +173,6 @@ $navAtivo = 'carrinho';
         </form>
       </div>
 
-      <!-- Summary -->
       <div class="cart-summary" id="orderSummary">
         <h4><i class="bi bi-receipt" style="color:var(--rose);"></i> Resumo do Pedido</h4>
         <div id="checkoutItems">
@@ -198,7 +196,6 @@ $navAtivo = 'carrinho';
   </div>
 </section>
 
-<!-- ═══════════════ FOOTER ═══════════════ -->
 <footer class="footer">
   <div class="container">
     <div class="footer-grid">
@@ -246,38 +243,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const items = Cart.get();
   if (items.length === 0) { window.location.href = 'carrinho.php'; return; }
 
-  // Render summary
   let html = '';
   items.forEach(item => {
-    const sub = item.preco * item.quantidade;
     html += `<div class="summary-row">
       <span style="font-size:.85rem;">${item.nome} <small style="color:var(--muted);">×${item.quantidade}</small></span>
-      <span style="font-size:.85rem;font-weight:600;">${fmtBRL(sub)}</span>
+      <span style="font-size:.85rem;font-weight:600;">${fmtBRL(item.preco * item.quantidade)}</span>
     </div>`;
   });
   document.getElementById('checkoutItems').innerHTML = html;
   document.getElementById('checkoutTotal').textContent = fmtBRL(Cart.total());
 
-  // Attach cart to form
   document.getElementById('checkoutForm').addEventListener('submit', function() {
     document.getElementById('itensInput').value = JSON.stringify(items);
   });
 
-  // Phone mask
   document.getElementById('telInput').addEventListener('input', function() {
-    let v = this.value.replace(/\D/g,'');
-    if (v.length > 11) v = v.slice(0,11);
+    let v = this.value.replace(/\D/g, '').slice(0, 11);
     if (v.length > 6)      v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
     else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
     else if (v.length > 0) v = `(${v}`;
     this.value = v;
   });
 
-  // PIX info
   document.querySelectorAll('input[name="forma_pagamento"]').forEach(r => {
     r.addEventListener('change', () => {
-      document.getElementById('pixInfo').style.display =
-        document.querySelector('input[name="forma_pagamento"]:checked')?.value === 'pix' ? 'flex' : 'none';
+      const isPix = document.querySelector('input[name="forma_pagamento"]:checked')?.value === 'pix';
+      document.getElementById('pixInfo').style.display = isPix ? 'flex' : 'none';
     });
   });
 });

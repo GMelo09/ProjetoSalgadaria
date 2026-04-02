@@ -1,32 +1,12 @@
 <?php
-/**
- * pages/login.php
- *
- * Correções aplicadas:
- *  1. csrfField() adicionado em ambos os formulários
- *  2. Logout substituído por form POST (era GET — vulnerável)
- *  3. Mensagem de bloqueio por rate limiting adicionada
- *  4. Erro 'email_invalido' adicionado ao mapa de mensagens
- */
-
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 
-// Processa logout seguro via GET apenas para compatibilidade retroativa
-// ATENÇÃO: o correto é usar actions/logout.php via POST
-// Este bloco pode ser removido depois que todas as navbars forem atualizadas
-if (isset($_GET['saiu'])) {
-    // O logout real já foi feito pelo actions/logout.php
-    // Aqui só mostramos a mensagem de confirmação
-}
-
-// Se já está logado, redireciona para home
 if (isLoggedIn()) {
     header('Location: ../index.php');
     exit;
 }
 
-// Mapeamento de erros (chave = parâmetro GET, valor = mensagem exibida)
 $erros = [
     'nome_vazio'        => 'O nome é obrigatório.',
     'email_invalido'    => 'Informe um e-mail válido.',
@@ -37,23 +17,18 @@ $erros = [
     'senhas_diferentes' => 'As senhas não coincidem.',
     'credenciais'       => 'E-mail ou senha incorretos.',
     'servidor'          => 'Erro interno. Tente novamente.',
-    'bloqueado'         => 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.',
-    'saiu'              => '', // não é erro — silencioso
+    'bloqueado'         => 'Muitas tentativas. Aguarde alguns minutos.',
 ];
 
 $erro    = $_GET['erro'] ?? '';
 $msgErro = $erros[$erro] ?? '';
 
-// Rate limiting: complementa a mensagem com o tempo restante
 if ($erro === 'bloqueado' && !empty($_GET['min'])) {
     $min     = max(1, (int) $_GET['min']);
     $msgErro = "Muitas tentativas. Aguarde {$min} minuto(s) antes de tentar novamente.";
 }
 
-$cadastroSucesso = isset($_GET['cadastro']) && $_GET['cadastro'] === 'sucesso';
-$flash           = getFlash();
-
-// Define qual tab abrir com base na query string
+$flash    = getFlash();
 $tabAtiva = ($_GET['tab'] ?? 'login') === 'cadastro' ? 'cadastro' : 'login';
 ?>
 <!DOCTYPE html>
@@ -72,7 +47,6 @@ $tabAtiva = ($_GET['tab'] ?? 'login') === 'cadastro' ? 'cadastro' : 'login';
 </head>
 <body>
 
-<!-- ═══════════════ NAVBAR ═══════════════ -->
 <header>
   <nav class="navbar-main">
     <div class="container">
@@ -99,9 +73,7 @@ $tabAtiva = ($_GET['tab'] ?? 'login') === 'cadastro' ? 'cadastro' : 'login';
   </nav>
 </header>
 
-<!-- ═══════════════ AUTH LAYOUT ═══════════════ -->
 <div class="auth-layout">
-
   <div class="auth-aside">
     <div class="auth-aside-content">
       <div style="font-size:3rem;margin-bottom:1rem;">🍩</div>
@@ -147,28 +119,24 @@ $tabAtiva = ($_GET['tab'] ?? 'login') === 'cadastro' ? 'cadastro' : 'login';
         </div>
       <?php endif; ?>
 
-      <!-- Tabs -->
       <div class="auth-tabs" role="tablist">
-        <button class="auth-tab <?= $tabAtiva === 'login' ? 'active' : '' ?>" id="tabLoginBtn" onclick="switchTab('login')">
+        <button class="auth-tab <?= $tabAtiva === 'login' ? 'active' : '' ?>" onclick="switchTab('login')">
           <i class="bi bi-box-arrow-in-right"></i> Entrar
         </button>
-        <button class="auth-tab <?= $tabAtiva === 'cadastro' ? 'active' : '' ?>" id="tabCadBtn" onclick="switchTab('cadastro')">
+        <button class="auth-tab <?= $tabAtiva === 'cadastro' ? 'active' : '' ?>" onclick="switchTab('cadastro')">
           <i class="bi bi-person-plus"></i> Criar Conta
         </button>
       </div>
 
-      <!-- ── LOGIN PANEL ──────────────────────────────────── -->
       <div class="auth-panel <?= $tabAtiva === 'login' ? 'active' : '' ?>" id="panelLogin">
         <h3>Entrar na conta</h3>
         <p class="subtitle">Acesse seu histórico de pedidos e preferências</p>
 
         <form action="../actions/usuario_logar.php" method="POST">
-          <?= csrfField() ?> <!-- TOKEN CSRF -->
-
+          <?= csrfField() ?>
           <div class="form-group">
             <label class="form-label">E-mail</label>
-            <input type="email" class="form-control" name="email" required
-              placeholder="seu@email.com" autocomplete="email">
+            <input type="email" class="form-control" name="email" required placeholder="seu@email.com" autocomplete="email">
           </div>
           <div class="form-group">
             <label class="form-label">Senha</label>
@@ -191,40 +159,34 @@ $tabAtiva = ($_GET['tab'] ?? 'login') === 'cadastro' ? 'cadastro' : 'login';
 
         <p style="text-align:center;margin-top:1.5rem;font-size:.85rem;color:var(--muted);">
           Não tem conta?
-          <button onclick="switchTab('cadastro')"
-            style="background:none;border:none;color:var(--rose);font-weight:600;cursor:pointer;">
+          <button onclick="switchTab('cadastro')" style="background:none;border:none;color:var(--rose);font-weight:600;cursor:pointer;">
             Criar agora →
           </button>
         </p>
       </div>
 
-      <!-- ── REGISTER PANEL ─────────────────────────────── -->
       <div class="auth-panel <?= $tabAtiva === 'cadastro' ? 'active' : '' ?>" id="panelCadastro">
         <h3>Criar conta</h3>
         <p class="subtitle">Rápido e gratuito. Comece a encomendar hoje!</p>
 
         <form action="../actions/usuario_cadastrar.php" method="POST">
-          <?= csrfField() ?> <!-- TOKEN CSRF -->
-
+          <?= csrfField() ?>
           <div class="form-group">
             <label class="form-label">Nome completo <span class="required">*</span></label>
             <input type="text" class="form-control" name="nome" required maxlength="100" placeholder="Seu nome">
           </div>
           <div class="form-group">
             <label class="form-label">E-mail <span class="required">*</span></label>
-            <input type="email" class="form-control" name="email" required maxlength="150"
-              placeholder="seu@email.com" autocomplete="email">
+            <input type="email" class="form-control" name="email" required maxlength="150" placeholder="seu@email.com" autocomplete="email">
           </div>
           <div class="form-group">
             <label class="form-label">Telefone / WhatsApp</label>
-            <input type="tel" class="form-control" name="telefone" maxlength="20"
-              placeholder="(11) 99999-9999" id="cadTel">
+            <input type="tel" class="form-control" name="telefone" maxlength="20" placeholder="(11) 99999-9999" id="cadTel">
           </div>
           <div class="form-group">
             <label class="form-label">Senha <span class="required">*</span></label>
             <div style="position:relative;">
-              <input type="password" class="form-control" name="senha" id="cadSenha"
-                required minlength="6" placeholder="Mín. 6 caracteres">
+              <input type="password" class="form-control" name="senha" id="cadSenha" required minlength="6" placeholder="Mín. 6 caracteres">
               <button type="button" onclick="toggleSenha('cadSenha','toggleCadIcon')"
                 style="position:absolute;right:.85rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;">
                 <i class="bi bi-eye" id="toggleCadIcon"></i>
@@ -233,8 +195,7 @@ $tabAtiva = ($_GET['tab'] ?? 'login') === 'cadastro' ? 'cadastro' : 'login';
           </div>
           <div class="form-group">
             <label class="form-label">Confirmar Senha <span class="required">*</span></label>
-            <input type="password" class="form-control" name="senha_confirmacao" id="cadSenha2"
-              required placeholder="Repita a senha">
+            <input type="password" class="form-control" name="senha_confirmacao" id="cadSenha2" required placeholder="Repita a senha">
           </div>
           <div id="senhaErro" class="alert alert-error mb-2" style="display:none;">
             <i class="bi bi-x-circle"></i> As senhas não coincidem.
@@ -246,8 +207,7 @@ $tabAtiva = ($_GET['tab'] ?? 'login') === 'cadastro' ? 'cadastro' : 'login';
 
         <p style="text-align:center;margin-top:1.5rem;font-size:.85rem;color:var(--muted);">
           Já tem conta?
-          <button onclick="switchTab('login')"
-            style="background:none;border:none;color:var(--rose);font-weight:600;cursor:pointer;">
+          <button onclick="switchTab('login')" style="background:none;border:none;color:var(--rose);font-weight:600;cursor:pointer;">
             Entrar →
           </button>
         </p>
@@ -255,7 +215,6 @@ $tabAtiva = ($_GET['tab'] ?? 'login') === 'cadastro' ? 'cadastro' : 'login';
 
     </div>
   </div>
-
 </div>
 
 <footer class="footer">
@@ -295,18 +254,16 @@ $tabAtiva = ($_GET['tab'] ?? 'login') === 'cadastro' ? 'cadastro' : 'login';
 function switchTab(tab) {
   document.getElementById('panelLogin').classList.toggle('active', tab === 'login');
   document.getElementById('panelCadastro').classList.toggle('active', tab === 'cadastro');
-  document.getElementById('tabLoginBtn').classList.toggle('active', tab === 'login');
-  document.getElementById('tabCadBtn').classList.toggle('active', tab === 'cadastro');
+  document.querySelectorAll('.auth-tab').forEach((btn, i) => {
+    btn.classList.toggle('active', (i === 0) === (tab === 'login'));
+  });
 }
 
 function toggleSenha(inputId, iconId) {
-  const inp  = document.getElementById(inputId);
-  const icon = document.getElementById(iconId);
-  if (inp.type === 'password') {
-    inp.type = 'text'; icon.className = 'bi bi-eye-slash';
-  } else {
-    inp.type = 'password'; icon.className = 'bi bi-eye';
-  }
+  const inp = document.getElementById(inputId);
+  const isPassword = inp.type === 'password';
+  inp.type = isPassword ? 'text' : 'password';
+  document.getElementById(iconId).className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
 }
 
 function validarSenhas() {
@@ -317,11 +274,8 @@ function validarSenhas() {
 document.getElementById('cadSenha').addEventListener('input', validarSenhas);
 document.getElementById('cadSenha2').addEventListener('input', validarSenhas);
 
-// Bloqueia submit se senhas não coincidem (validação de UX — o servidor também valida)
 document.querySelector('#panelCadastro form').addEventListener('submit', function(e) {
-  const s1 = document.getElementById('cadSenha').value;
-  const s2 = document.getElementById('cadSenha2').value;
-  if (s1 !== s2) {
+  if (document.getElementById('cadSenha').value !== document.getElementById('cadSenha2').value) {
     e.preventDefault();
     Swal.fire({ toast:true, position:'top-end', icon:'error', title:'As senhas não coincidem!',
       showConfirmButton:false, timer:3000, timerProgressBar:true });
@@ -337,12 +291,6 @@ Swal.fire({ toast:true, position:'top-end', icon:'<?= $erro === 'bloqueado' ? 'w
 <?php if ($flash && $flash['tipo'] === 'sucesso'): ?>
 Swal.fire({ toast:true, position:'top-end', icon:'success',
   title: <?= json_encode($flash['mensagem']) ?>,
-  showConfirmButton:false, timer:3500, timerProgressBar:true });
-<?php endif; ?>
-
-<?php if ($cadastroSucesso): ?>
-Swal.fire({ toast:true, position:'top-end', icon:'success',
-  title: 'Conta criada com sucesso!',
   showConfirmButton:false, timer:3500, timerProgressBar:true });
 <?php endif; ?>
 </script>

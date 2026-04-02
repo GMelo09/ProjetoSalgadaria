@@ -3,7 +3,6 @@ require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 
 $pedido_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
-
 if (!$pedido_id) {
     header('Location: ../index.php');
     exit;
@@ -21,7 +20,6 @@ if (!$pedido_id) {
 </head>
 <body>
 
-<!-- ═══════════════ NAVBAR ═══════════════ -->
 <header>
   <nav class="navbar-main">
     <div class="container">
@@ -53,8 +51,7 @@ if (!$pedido_id) {
               <li>
                 <form action="../actions/logout.php" method="POST" style="margin:0;">
                   <?= csrfField() ?>
-                  <button type="submit" class="dropdown-item"
-                    style="background:none;border:none;width:100%;text-align:left;">
+                  <button type="submit" class="dropdown-item" style="background:none;border:none;width:100%;text-align:left;">
                     <i class="bi bi-box-arrow-right"></i> Sair
                   </button>
                 </form>
@@ -72,7 +69,6 @@ if (!$pedido_id) {
   </nav>
 </header>
 
-<!-- ═══════════════ CONTEÚDO ═══════════════ -->
 <section class="section" style="text-align:center;padding:5rem 1rem;">
   <div class="container-sm">
     <div style="font-size:4rem;margin-bottom:1.5rem;">🎉</div>
@@ -94,7 +90,6 @@ if (!$pedido_id) {
   </div>
 </section>
 
-<!-- ═══════════════ FOOTER ═══════════════ -->
 <footer class="footer">
   <div class="container">
     <div class="footer-grid">
@@ -137,8 +132,6 @@ if (!$pedido_id) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../js/app.js"></script>
-<script>
-  Cart.clear();
-</script>
+<script>Cart.clear();</script>
 </body>
 </html>
