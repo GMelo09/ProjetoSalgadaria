@@ -138,6 +138,50 @@ class Produto
         return $produtos;
     }
 
+    public function SalgadosDestaque(): array
+    {
+        $banco     = Banco::conectar();
+        $comando   = $banco->query("SELECT * FROM vw_salgados_destaque");
+        $todos     = $comando->fetchAll(PDO::FETCH_ASSOC);
+        Banco::desconectar();
+
+        $destaques = array_slice($todos, 0, 5);
+
+        // Fallback: sem vendas no mês passado → pega os mais recentes
+        if (empty($destaques)) {
+            $banco     = Banco::conectar();
+            $comando   = $banco->query(
+                "SELECT * FROM produtos WHERE categoria_id = 1 AND ativo = 1 ORDER BY criado_em DESC LIMIT 5"
+            );
+            $destaques = $comando->fetchAll(PDO::FETCH_ASSOC);
+            Banco::desconectar();
+        }
+
+        return $destaques;
+    }
+
+    public function DocesDestaque(): array
+    {
+        $banco     = Banco::conectar();
+        $comando   = $banco->query("SELECT * FROM vw_doces_destaque");
+        $todos     = $comando->fetchAll(PDO::FETCH_ASSOC);
+        Banco::desconectar();
+
+        $destaques = array_slice($todos, 0, 5);
+
+        // Fallback: sem vendas no mês passado → pega os mais recentes
+        if (empty($destaques)) {
+            $banco     = Banco::conectar();
+            $comando   = $banco->query(
+                "SELECT * FROM produtos WHERE categoria_id = 2 AND ativo = 1 ORDER BY criado_em DESC LIMIT 5"
+            );
+            $destaques = $comando->fetchAll(PDO::FETCH_ASSOC);
+            Banco::desconectar();
+        }
+
+        return $destaques;
+    }
+
     public function TotalProdutos()
     {
         $sql     = "SELECT COUNT(*) AS total FROM produtos WHERE ativo = 1";

@@ -5,8 +5,8 @@ require_once __DIR__ . '/classes/pacote_class.php';
 sessionStart();
 
 $produtoObj = new Produto();
-$salgados   = array_slice($produtoObj->ListarPorCategoria(1), 0, 4);
-$doces      = array_slice($produtoObj->ListarPorCategoria(2), 0, 4);
+$salgados   = $produtoObj->SalgadosDestaque();
+$doces      = $produtoObj->DocesDestaque();
 // Contadores para exibir no painel de estatísticas
 $totalProdutos = $produtoObj->TotalProdutos();
 $totalSalgados = count($produtoObj->ListarPorCategoria(1));
@@ -148,10 +148,7 @@ $totalPacotes  = count($pacoteObj->ListarAtivos());
               <div class="product-card-placeholder" style="background:linear-gradient(135deg,#EFEBE9,#D7CCC8);">
                 <?php if (!empty($p['imagem'])): ?>
                   <img src="uploads/produtos/<?= htmlspecialchars($p['imagem']) ?>"
-                       alt="<?= htmlspecialchars($p['nome']) ?>"
-                       >
-                <?php else: ?>
-                  <?= $p['emoji'] ?>
+                       alt="<?= htmlspecialchars($p['nome']) ?>">
                 <?php endif; ?>
               </div>
               <span class="product-badge badge-salgado">Salgado</span>
@@ -234,10 +231,7 @@ $totalPacotes  = count($pacoteObj->ListarAtivos());
               <div class="product-card-placeholder" style="background:linear-gradient(135deg,#FCE4EC,#F8BBD0);">
                 <?php if (!empty($p['imagem'])): ?>
                   <img src="uploads/produtos/<?= htmlspecialchars($p['imagem']) ?>"
-                       alt="<?= htmlspecialchars($p['nome']) ?>"
-                       >
-                <?php else: ?>
-                  <?= $p['emoji'] ?>
+                       alt="<?= htmlspecialchars($p['nome']) ?>">
                 <?php endif; ?>
               </div>
               <span class="product-badge badge-doce">Doce</span>
