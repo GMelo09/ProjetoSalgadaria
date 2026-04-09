@@ -1,11 +1,19 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/classes/produto_class.php';
+require_once __DIR__ . '/classes/pacote_class.php';
 sessionStart();
 
 $produtoObj = new Produto();
 $salgados   = array_slice($produtoObj->ListarPorCategoria(1), 0, 4);
 $doces      = array_slice($produtoObj->ListarPorCategoria(2), 0, 4);
+// Contadores para exibir no painel de estatísticas
+$totalProdutos = $produtoObj->TotalProdutos();
+$totalSalgados = count($produtoObj->ListarPorCategoria(1));
+$totalDoces    = count($produtoObj->ListarPorCategoria(2));
+// Contador de pacotes
+$pacoteObj     = new Pacote();
+$totalPacotes  = count($pacoteObj->ListarAtivos());
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -99,21 +107,26 @@ $doces      = array_slice($produtoObj->ListarPorCategoria(2), 0, 4);
   <div class="stats-strip">
     <div class="container">
       <div class="stats-grid">
+
+            <!-- Puxar os produtos em numeros dentro de uma div -->
         <div>
-          <div class="stat-num">15+</div>
-          <div class="stat-label">Sabores</div>
+          <div class="stat-num"><?= htmlspecialchars($totalProdutos) ?></div>
+          <div class="stat-label">Produtos Disponíveis</div>
         </div>
+
         <div>
-          <div class="stat-num">500+</div>
-          <div class="stat-label">Festas Atendidas</div>
+          <div class="stat-num"><?= htmlspecialchars($totalSalgados) ?></div>
+          <div class="stat-label">Salgados</div>
         </div>
+
         <div>
-          <div class="stat-num">4</div>
-          <div class="stat-label">Tamanhos de Pacote</div>
+          <div class="stat-num"><?= htmlspecialchars($totalDoces) ?></div>
+          <div class="stat-label">Doces</div>
         </div>
+
         <div>
-          <div class="stat-num">100%</div>
-          <div class="stat-label">Artesanal</div>
+          <div class="stat-num"><?= htmlspecialchars($totalPacotes) ?></div>
+          <div class="stat-label">Pacotes</div>
         </div>
       </div>
     </div>

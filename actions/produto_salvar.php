@@ -18,7 +18,6 @@ $nome         = trim(filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CH
 $descricao    = trim(filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
 $categoria_id = filter_input(INPUT_POST, 'categoria_id', FILTER_VALIDATE_INT);
 $preco        = filter_input(INPUT_POST, 'preco', FILTER_VALIDATE_FLOAT);
-$emoji        = trim(filter_input(INPUT_POST, 'emoji', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
 $tag          = trim(filter_input(INPUT_POST, 'tag', FILTER_SANITIZE_SPECIAL_CHARS) ?? 'Classico');
 $ativo        = isset($_POST['ativo']) ? 1 : 0;
 
@@ -83,7 +82,6 @@ $produto->nome         = $nome;
 $produto->descricao    = $descricao;
 $produto->categoria_id = $categoria_id;
 $produto->preco        = round($preco, 2);
-$produto->emoji        = $emoji;
 $produto->tag          = $tag;
 $produto->ativo        = $ativo;
 $produto->imagem       = $imagem_nome; // null se nenhuma imagem nova, nome do arquivo caso contrario

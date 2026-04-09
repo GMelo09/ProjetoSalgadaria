@@ -121,9 +121,8 @@ class Pedido
 
     public function ListarItens($id_pedido)
     {
-        $sql = "SELECT pi.*, pr.emoji
+        $sql = "SELECT pi.*
                 FROM pedido_itens pi
-                LEFT JOIN produtos pr ON pi.produto_id = pr.id
                 WHERE pi.pedido_id = ?";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);

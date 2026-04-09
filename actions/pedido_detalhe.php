@@ -107,7 +107,6 @@ $iconesPag = ['pix' => 'bi-qr-code', 'dinheiro' => 'bi-cash', 'cartao' => 'bi-cr
           <?php foreach ($itens as $item): ?>
             <tr style="border-bottom:1px solid var(--cream);">
               <td style="padding:.5rem .5rem;">
-                <?= htmlspecialchars($item['emoji'] ?? '') ?>
                 <?= htmlspecialchars($item['nome_produto']) ?>
               </td>
               <td style="text-align:center;padding:.5rem .5rem;"><?= (int)$item['quantidade'] ?></td>

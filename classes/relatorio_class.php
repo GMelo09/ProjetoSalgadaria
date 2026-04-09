@@ -68,7 +68,6 @@ class Relatorio
         $limite = (int) $limite;
         $sql = "SELECT 
                     pi.nome_produto,
-                    pr.emoji,
                     c.nome AS categoria,
                     SUM(pi.quantidade) AS total_vendido,
                     SUM(pi.quantidade * pi.preco_unitario) AS receita_total
