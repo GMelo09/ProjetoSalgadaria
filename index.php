@@ -191,22 +191,17 @@ $totalPacotes  = count($pacoteObj->ListarAtivos());
       </div>
       <div class="grid-4">
         <?php
-        $pacotes = [
-          ['qtd' => 50, 'sabores' => 3, 'popular' => false, 'desc' => 'Ideal para reuniões'],
-          ['qtd' => 100, 'sabores' => 5, 'popular' => true, 'desc' => 'O mais pedido!'],
-          ['qtd' => 200, 'sabores' => 7, 'popular' => false, 'desc' => 'Para festas maiores'],
-          ['qtd' => 300, 'sabores' => 10, 'popular' => false, 'desc' => 'Para grandes comemorações'],
-        ];
-        foreach ($pacotes as $pk): ?>
+        $pacotesHome = $pacoteObj->ListarAtivos();
+        foreach ($pacotesHome as $pk): ?>
           <div class="package-card<?= $pk['popular'] ? ' popular' : '' ?>">
             <?php if ($pk['popular']): ?>
               <div class="popular-badge">⭐ Mais Popular</div>
             <?php endif; ?>
-            <div class="package-qty"><?= $pk['qtd'] ?></div>
+            <div class="package-qty"><?= (int)$pk['quantidade'] ?></div>
             <div class="package-unit">unidades</div>
-            <div class="package-flavors">Até <strong><?= $pk['sabores'] ?> sabores</strong></div>
-            <p style="font-size:.82rem;color:var(--muted);margin:.5rem 0;"><?= $pk['desc'] ?></p>
-            <a href="pages/pacotes.php?qtd=<?= $pk['qtd'] ?>" class="btn btn-primary btn-full mt-2">
+            <div class="package-flavors">Até <strong><?= (int)$pk['max_sabores'] ?> sabores</strong></div>
+            <p style="font-size:.82rem;color:var(--muted);margin:.5rem 0;"><?= htmlspecialchars($pk['descricao']) ?></p>
+            <a href="pages/pacotes.php?qtd=<?= (int)$pk['quantidade'] ?>" class="btn btn-primary btn-full mt-2">
               <i class="bi bi-bag-plus"></i> Montar Pacote
             </a>
           </div>

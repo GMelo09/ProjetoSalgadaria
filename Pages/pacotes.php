@@ -1,18 +1,15 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../classes/produto_class.php';
+require_once __DIR__ . '/../classes/pacote_class.php';
 sessionStart();
 
 $produtoObj = new Produto();
 $salgados   = $produtoObj->ListarPorCategoria(1);
 $doces      = $produtoObj->ListarPorCategoria(2);
 
-$pacotes = [
-  ['qtd' => 50,  'sabores' => 3,  'popular' => false, 'desc' => 'Ideal para reuniões e aniversários pequenos'],
-  ['qtd' => 100, 'sabores' => 5,  'popular' => true,  'desc' => 'O mais pedido! Perfeito para festas médias'],
-  ['qtd' => 200, 'sabores' => 7,  'popular' => false, 'desc' => 'Para festas maiores com variedade de sabores'],
-  ['qtd' => 300, 'sabores' => 10, 'popular' => false, 'desc' => 'O kit completo para grandes comemorações'],
-];
+$pacoteObj = new Pacote();
+$pacotes   = $pacoteObj->ListarAtivos();
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -213,17 +210,23 @@ $pacotes = [
       <div class="section-divider"></div>
     </div>
     <div class="grid-4">
+      <?php if (empty($pacotes)): ?>
+        <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--muted);">
+          <i class="bi bi-box-seam" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
+          Nenhum pacote disponível no momento.
+        </div>
+      <?php endif; ?>
       <?php foreach ($pacotes as $pk): ?>
         <div class="package-card<?= $pk['popular'] ? ' popular' : '' ?>"
-          onclick="openPackageModal(<?= $pk['qtd'] ?>,<?= $pk['sabores'] ?>)"
+          onclick="openPackageModal(<?= (int)$pk['quantidade'] ?>,<?= (int)$pk['max_sabores'] ?>)"
           style="cursor:pointer;">
           <?php if ($pk['popular']): ?>
             <div class="popular-badge">⭐ Mais Popular</div>
           <?php endif; ?>
-          <div class="package-qty"><?= $pk['qtd'] ?></div>
+          <div class="package-qty"><?= (int)$pk['quantidade'] ?></div>
           <div class="package-unit">unidades</div>
-          <div class="package-flavors">Até <strong><?= $pk['sabores'] ?> sabores</strong></div>
-          <p style="font-size:.82rem;color:var(--muted);margin:.75rem 0;"><?= $pk['desc'] ?></p>
+          <div class="package-flavors">Até <strong><?= (int)$pk['max_sabores'] ?> sabores</strong></div>
+          <p style="font-size:.82rem;color:var(--muted);margin:.75rem 0;"><?= htmlspecialchars($pk['descricao']) ?></p>
           <button class="btn btn-primary btn-full">
             <i class="bi bi-bag-plus"></i> Montar Pacote
           </button>

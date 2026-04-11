@@ -24,7 +24,7 @@ $clientes    = $usuarioObj->ListarTodos() ?? [];
 $categorias  = $categoriaObj->ListarTodas() ?? [];
 $topProdutos = $relatorioObj->ProdutosMaisVendidos(5) ?? [];
 $fatDiario   = $relatorioObj->FaturamentoPorDia(date('Y-m-01'), date('Y-m-d')) ?? [];
-$faturMes    = $relatorioObj->FaturamentoPorMes(date('Y-01-01'), date('Y-12-31')) ?? []; 
+$faturMes    = $relatorioObj->FaturamentoPorMes(date('Y-01-01'), date('Y-12-31')) ?? [];
 
 
 // ── Período selecionado via GET ───────────────────────────────
@@ -329,22 +329,22 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
               <div style="flex:1;display:flex;flex-direction:column;gap:.5rem;">
                 <?php
                 $statusColors = [
-                  'pendente'   => ['#FB8C00','⏳'],
-                  'confirmado' => ['#1E88E5','✅'],
-                  'producao'   => ['#C2185B','🔧'],
-                  'entregue'   => ['#43A047','📦'],
-                  'cancelado'  => ['#E53935','✖'],
+                  'pendente'   => ['#FB8C00', '⏳'],
+                  'confirmado' => ['#1E88E5', '✅'],
+                  'producao'   => ['#C2185B', '🔧'],
+                  'entregue'   => ['#43A047', '📦'],
+                  'cancelado'  => ['#E53935', '✖'],
                 ];
                 foreach ($contStatus as $key => $cnt):
                   $pct = $totalPed > 0 ? round($cnt / $totalPed * 100) : 0;
                   [$cor, $emoji] = $statusColors[$key];
                 ?>
-                <div style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;">
-                  <span style="width:10px;height:10px;border-radius:50%;background:<?= $cor ?>;flex-shrink:0;"></span>
-                  <span style="flex:1;color:var(--muted);"><?= $statusLabels[$key] ?></span>
-                  <span style="font-weight:700;color:var(--dark);"><?= $cnt ?></span>
-                  <span style="color:var(--muted);font-size:.72rem;">(<?= $pct ?>%)</span>
-                </div>
+                  <div style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;">
+                    <span style="width:10px;height:10px;border-radius:50%;background:<?= $cor ?>;flex-shrink:0;"></span>
+                    <span style="flex:1;color:var(--muted);"><?= $statusLabels[$key] ?></span>
+                    <span style="font-weight:700;color:var(--dark);"><?= $cnt ?></span>
+                    <span style="color:var(--muted);font-size:.72rem;">(<?= $pct ?>%)</span>
+                  </div>
                 <?php endforeach; ?>
                 <div style="margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--cream);font-size:.78rem;color:var(--muted);">
                   Total: <strong style="color:var(--dark);"><?= $totalPed ?> pedidos</strong>
@@ -546,8 +546,8 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
                   <td>
                     <?php if (!empty($prod['imagem'])): ?>
                       <img src="../uploads/produtos/<?= htmlspecialchars($prod['imagem']) ?>"
-                           alt="<?= htmlspecialchars($prod['nome']) ?>"
-                           style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--cream);">
+                        alt="<?= htmlspecialchars($prod['nome']) ?>"
+                        style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--cream);">
                     <?php else: ?>
                       <span style="font-size:1.4rem;display:inline-block;width:42px;height:42px;line-height:42px;text-align:center;">
                         <?= htmlspecialchars($prod['emoji'] ?? '📦') ?>
@@ -664,89 +664,218 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
       </div>
     </section>
 
+    <?php
+    /*
+ ┌─────────────────────────────────────────────────────────────────────────┐
+ │  SEÇÃO: RELATÓRIOS  — substitui a <section id="secRelatorios"> atual    │
+ │  Funciona com as variáveis PHP já calculadas no topo do dashboard.php   │
+ └─────────────────────────────────────────────────────────────────────────┘
+*/
+    ?>
+
     <!-- ══════════════════════════════════════
-     SEÇÃO: RELATÓRIOS
-     Substitui a <section id="secRelatorios"> atual no dashboard.
+     SEÇÃO: RELATÓRIOS & FINANCEIRO
 ══════════════════════════════════════ -->
     <section class="admin-section" id="secRelatorios">
-      <div class="admin-section-header">
+
+      <!-- Cabeçalho + seletor de período -->
+      <div class="admin-section-header" style="flex-wrap:wrap;gap:1rem;">
         <div>
-          <h2><i class="bi bi-graph-up-arrow" style="color:var(--rose);font-size:1.3rem;"></i> Relatórios &amp; Financeiro</h2>
-          <p class="section-subtitle">Análise de faturamento e desempenho do negócio</p>
+          <h2>
+            <i class="bi bi-graph-up-arrow" style="color:var(--rose);font-size:1.3rem;"></i>
+            Relatórios &amp; Financeiro
+          </h2>
+          <p class="section-subtitle">
+            Análise de desempenho — período:
+            <strong style="color:var(--rose);"><?= htmlspecialchars($nomePeriodo) ?></strong>
+            (<?= date('d/m/Y', strtotime($dataInicio)) ?> a <?= date('d/m/Y', strtotime($dataFim)) ?>)
+          </p>
         </div>
 
-        <!-- Seletor de período -->
-        <form method="GET" action="" id="formPeriodo" style="display:flex;align-items:center;gap:.5rem;">
-          <input type="hidden" name="secao" value="relatorios">
-          <label style="font-size:.82rem;color:var(--muted);font-weight:600;">Período:</label>
-          <select class="form-control" id="selectPeriodo" name="periodo"
-            style="width:auto;font-size:.85rem;"
-            onchange="this.form.submit()">
-            <option value="semana" <?= $periodoSelecionado === 'semana'    ? 'selected' : '' ?>>Semanal</option>
-            <option value="mes" <?= $periodoSelecionado === 'mes'       ? 'selected' : '' ?>>Mensal</option>
-            <option value="trimestre" <?= $periodoSelecionado === 'trimestre' ? 'selected' : '' ?>>Semestral</option>
-            <option value="ano" <?= $periodoSelecionado === 'ano'       ? 'selected' : '' ?>>Anual</option>
-          </select>
-        </form>
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+          <!-- Seletor de período estilizado -->
+          <div style="display:flex;background:#fff;border:1.5px solid var(--cream);border-radius:12px;overflow:hidden;" id="seletorPeriodo">
+            <?php foreach ($periodos as $key => $cfg): ?>
+              <button
+                data-periodo="<?= $key ?>"
+                onclick="mudarPeriodo('<?= $key ?>')"
+                style="padding:.45rem 1rem;font-size:.8rem;font-weight:600;text-decoration:none;transition:all .15s;border:none;cursor:pointer;
+                    <?= $periodoSelecionado === $key
+                      ? 'background:var(--rose);color:#fff;'
+                      : 'color:var(--muted);background:transparent;' ?>">
+                <?= htmlspecialchars($cfg['label']) ?>
+              </button>
+            <?php endforeach; ?>
+          </div>
+
+          <!-- Botão exportar (placeholder — conecte ao seu backend) -->
+          <button class="btn btn-outline" onclick="exportarRelatorio()" style="border-radius:12px;font-size:.84rem;">
+            <i class="bi bi-download"></i> Exportar CSV
+          </button>
+        </div>
       </div>
 
       <!-- ── KPIs do período ──────────────────────────────────── -->
-      <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;">
 
-        <div class="kpi-card kpi-rose">
-          <div class="kpi-icon"><i class="bi bi-currency-dollar"></i></div>
-          <div class="kpi-info">
-            <div class="kpi-label">Receita <?= htmlspecialchars($nomePeriodo) ?></div>
-            <div class="kpi-value">R$ <?= $dadosPeriodo['receita'] ?></div>
-            <div class="kpi-trend"><i class="bi bi-bar-chart"></i> no período</div>
+        <!-- Receita -->
+        <div style="background:linear-gradient(135deg,var(--rose-dark),var(--rose));border-radius:18px;padding:1.5rem;color:#fff;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:-15px;right:-15px;width:90px;height:90px;background:rgba(255,255,255,.1);border-radius:50%;"></div>
+          <i class="bi bi-currency-dollar" style="font-size:1.6rem;opacity:.8;"></i>
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-top:.75rem;opacity:.8;">
+            Receita <?= htmlspecialchars($nomePeriodo) ?>
+          </div>
+          <div style="font-size:2rem;font-weight:900;line-height:1.15;font-family:'Cormorant Garamond',serif;">
+            R$ <?= $dadosPeriodo['receita'] ?>
+          </div>
+          <div style="font-size:.75rem;margin-top:.3rem;opacity:.75;">
+            <i class="bi bi-bar-chart"></i> faturamento total no período
           </div>
         </div>
 
-        <div class="kpi-card kpi-choco">
-          <div class="kpi-icon"><i class="bi bi-bag-check"></i></div>
-          <div class="kpi-info">
-            <div class="kpi-label">Atendimentos</div>
-            <div class="kpi-value"><?= $dadosPeriodo['atendimentos'] ?></div>
-            <div class="kpi-trend"><i class="bi bi-calendar-check"></i> pedidos</div>
+        <!-- Atendimentos -->
+        <div style="background:#fff;border:1.5px solid var(--cream);border-radius:18px;padding:1.5rem;position:relative;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Pedidos</div>
+              <div style="font-size:2rem;font-weight:900;color:var(--dark);font-family:'Cormorant Garamond',serif;line-height:1.15;">
+                <?= $dadosPeriodo['atendimentos'] ?>
+              </div>
+              <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem;">atendimentos no período</div>
+            </div>
+            <div style="width:48px;height:48px;border-radius:14px;background:var(--choco-pale);display:flex;align-items:center;justify-content:center;">
+              <i class="bi bi-bag-check" style="font-size:1.3rem;color:var(--choco);"></i>
+            </div>
           </div>
         </div>
 
-        <div class="kpi-card kpi-blue">
-          <div class="kpi-icon"><i class="bi bi-receipt"></i></div>
-          <div class="kpi-info">
-            <div class="kpi-label">Ticket Médio</div>
-            <div class="kpi-value">R$ <?= $dadosPeriodo['ticket_medio'] ?></div>
-            <div class="kpi-trend"><i class="bi bi-calculator"></i> por pedido</div>
+        <!-- Ticket Médio -->
+        <div style="background:#fff;border:1.5px solid var(--cream);border-radius:18px;padding:1.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Ticket Médio</div>
+              <div style="font-size:2rem;font-weight:900;color:var(--dark);font-family:'Cormorant Garamond',serif;line-height:1.15;">
+                R$ <?= $dadosPeriodo['ticket_medio'] ?>
+              </div>
+              <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem;">valor médio por pedido</div>
+            </div>
+            <div style="width:48px;height:48px;border-radius:14px;background:#e3f2fd;display:flex;align-items:center;justify-content:center;">
+              <i class="bi bi-receipt" style="font-size:1.3rem;color:#1E88E5;"></i>
+            </div>
           </div>
         </div>
 
-        <div class="kpi-card kpi-success">
-          <div class="kpi-icon"><i class="bi bi-person-plus"></i></div>
-          <div class="kpi-info">
-            <div class="kpi-label">Clientes Novos</div>
-            <div class="kpi-value"><?= $dadosPeriodo['clientesNovos'] ?></div>
-            <div class="kpi-trend"><i class="bi bi-person-check"></i> cadastrados</div>
+        <!-- Clientes Novos -->
+        <div style="background:#fff;border:1.5px solid var(--cream);border-radius:18px;padding:1.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Novos Clientes</div>
+              <div style="font-size:2rem;font-weight:900;color:var(--dark);font-family:'Cormorant Garamond',serif;line-height:1.15;">
+                <?= $dadosPeriodo['clientesNovos'] ?>
+              </div>
+              <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem;">cadastrados no período</div>
+            </div>
+            <div style="width:48px;height:48px;border-radius:14px;background:#e8f5e9;display:flex;align-items:center;justify-content:center;">
+              <i class="bi bi-person-plus" style="font-size:1.3rem;color:#43A047;"></i>
+            </div>
           </div>
         </div>
 
       </div>
 
-      <!-- ── Gráfico diário ───────────────────────────────────── -->
-      <div class="admin-card" style="margin-top:1.5rem;">
-        <h5 style="font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--choco);display:flex;align-items:center;gap:.5rem;margin-bottom:1.5rem;">
-          <span style="display:inline-block;width:4px;height:18px;background:linear-gradient(180deg,var(--rose),var(--rose-dark));border-radius:4px;"></span>
-          Faturamento Diário — Últimos 30 Dias
-        </h5>
-        <canvas id="chartFaturamentoDiario" height="60"></canvas>
+      <!-- ── Gráficos lado a lado ──────────────────────────────── -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.25rem;margin-bottom:1.5rem;">
+
+        <!-- Faturamento diário (linha) -->
+        <div style="background:#fff;border:1.5px solid var(--cream);border-radius:18px;padding:1.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+            <div>
+              <h5 style="font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--choco);margin:0;display:flex;align-items:center;gap:.5rem;">
+                <span style="display:inline-block;width:4px;height:16px;background:linear-gradient(180deg,var(--rose),var(--rose-dark));border-radius:4px;"></span>
+                Faturamento Diário
+              </h5>
+              <p style="font-size:.75rem;color:var(--muted);margin:.25rem 0 0;">Últimos 30 dias do mês atual</p>
+            </div>
+            <div style="font-size:.75rem;color:var(--muted);">
+              <i class="bi bi-circle-fill" style="color:var(--rose);font-size:.5rem;"></i> Receita diária
+            </div>
+          </div>
+          <canvas id="chartFaturamentoDiario" height="90"
+            data-labels='<?= json_encode(array_column(array_reverse($fatDiario), 'dia')) ?>'
+            data-values='<?= json_encode(array_column(array_reverse($fatDiario), 'faturamento')) ?>'></canvas>
+        </div>
+
+        <!-- Distribuição de status dos pedidos -->
+        <div style="background:#fff;border:1.5px solid var(--cream);border-radius:18px;padding:1.5rem;">
+          <h5 style="font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--choco);margin:0 0 1.25rem;display:flex;align-items:center;gap:.5rem;">
+            <span style="display:inline-block;width:4px;height:16px;background:linear-gradient(180deg,#1E88E5,#1565C0);border-radius:4px;"></span>
+            Status dos Pedidos
+          </h5>
+          <?php $totalPed = array_sum($contStatus); ?>
+          <?php if ($totalPed > 0): ?>
+            <div style="position:relative;height:160px;margin-bottom:1rem;">
+              <canvas id="chartStatusRel"
+                data-labels='<?= json_encode(array_values($statusLabels)) ?>'
+                data-values='<?= json_encode(array_values($contStatus)) ?>'></canvas>
+            </div>
+            <?php
+            $statusColors = [
+              'pendente'   => ['#FB8C00', 'bi-hourglass-split'],
+              'confirmado' => ['#1E88E5', 'bi-check-circle'],
+              'producao'   => ['#C2185B', 'bi-hammer'],
+              'entregue'   => ['#43A047', 'bi-box-seam'],
+              'cancelado'  => ['#E53935', 'bi-x-circle'],
+            ];
+            foreach ($contStatus as $key => $cnt):
+              $pct = $totalPed > 0 ? round($cnt / $totalPed * 100) : 0;
+              [$cor, $icon] = $statusColors[$key];
+            ?>
+              <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;">
+                <div style="width:8px;height:8px;border-radius:50%;background:<?= $cor ?>;flex-shrink:0;"></div>
+                <span style="font-size:.78rem;color:var(--muted);flex:1;"><?= $statusLabels[$key] ?></span>
+                <strong style="font-size:.78rem;color:var(--dark);"><?= $cnt ?></strong>
+                <span style="font-size:.72rem;color:var(--muted);background:var(--cream);border-radius:50px;padding:.1rem .4rem;"><?= $pct ?>%</span>
+              </div>
+            <?php endforeach; ?>
+            <div style="border-top:1px solid var(--cream);margin-top:.5rem;padding-top:.5rem;font-size:.75rem;color:var(--muted);text-align:right;">
+              Total: <strong style="color:var(--dark);"><?= $totalPed ?> pedidos</strong>
+            </div>
+          <?php else: ?>
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--muted);gap:.5rem;">
+              <i class="bi bi-inbox" style="font-size:2rem;"></i>
+              <span style="font-size:.85rem;">Nenhum pedido ainda</span>
+            </div>
+          <?php endif; ?>
+        </div>
+
       </div>
 
-      <!-- ── Resumo dos últimos 6 meses ───────────────────────── -->
-      <div class="admin-card" style="margin-top:1.5rem;">
-        <div class="admin-card-header">
-          <h5><i class="bi bi-calendar3"></i> Resumo dos Últimos 6 Meses</h5>
+      <!-- ── Faturamento mensal (barras) ──────────────────────── -->
+      <div style="background:#fff;border:1.5px solid var(--cream);border-radius:18px;padding:1.5rem;margin-bottom:1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+          <div>
+            <h5 style="font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--choco);margin:0;display:flex;align-items:center;gap:.5rem;">
+              <span style="display:inline-block;width:4px;height:16px;background:linear-gradient(180deg,var(--rose),var(--rose-dark));border-radius:4px;"></span>
+              Faturamento Mensal
+            </h5>
+            <p style="font-size:.75rem;color:var(--muted);margin:.25rem 0 0;">Últimos 6 meses</p>
+          </div>
         </div>
-        <div class="table-responsive">
-          <table class="admin-table">
+        <canvas id="chartFaturamento" height="60"
+          data-labels='<?= json_encode(array_column($faturMes, 'mes_label')) ?>'
+          data-values='<?= json_encode(array_column($faturMes, 'faturamento')) ?>'></canvas>
+      </div>
+
+      <!-- ── Tabela: últimos 6 meses ──────────────────────────── -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem;">
+
+        <!-- Resumo mensal -->
+        <div style="background:#fff;border:1.5px solid var(--cream);border-radius:18px;padding:1.5rem;">
+          <h5 style="font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--choco);margin:0 0 1.25rem;display:flex;align-items:center;gap:.5rem;">
+            <span style="display:inline-block;width:4px;height:16px;background:linear-gradient(180deg,#43A047,#2E7D32);border-radius:4px;"></span>
+            Resumo — Últimos 6 Meses
+          </h5>
+          <table class="admin-table" style="font-size:.83rem;">
             <thead>
               <tr>
                 <th>Mês</th>
@@ -758,20 +887,20 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             <tbody>
               <?php foreach (array_reverse($resumoMeses) as $mes): ?>
                 <tr>
-                  <td class="fw-medium"><?= htmlspecialchars($mes['mes']) ?></td>
+                  <td style="font-weight:600;color:var(--dark);"><?= htmlspecialchars($mes['mes']) ?></td>
                   <td><strong style="color:var(--rose);"><?= htmlspecialchars($mes['receita']) ?></strong></td>
                   <td><?= (int)$mes['atendimentos'] ?></td>
                   <td>
                     <?php if ($mes['variacao'] > 0): ?>
-                      <span class="badge-status badge-success">
+                      <span style="background:#e8f5e9;color:#43A047;font-size:.72rem;font-weight:700;padding:.2rem .55rem;border-radius:50px;display:inline-flex;align-items:center;gap:.2rem;">
                         <i class="bi bi-arrow-up-short"></i> <?= htmlspecialchars($mes['variacaoFormatada']) ?>
                       </span>
                     <?php elseif ($mes['variacao'] < 0): ?>
-                      <span class="badge-status badge-danger">
+                      <span style="background:#ffebee;color:#E53935;font-size:.72rem;font-weight:700;padding:.2rem .55rem;border-radius:50px;display:inline-flex;align-items:center;gap:.2rem;">
                         <i class="bi bi-arrow-down-short"></i> <?= htmlspecialchars($mes['variacaoFormatada']) ?>
                       </span>
                     <?php else: ?>
-                      <span class="badge-status badge-secondary">—</span>
+                      <span style="color:var(--muted);font-size:.8rem;">—</span>
                     <?php endif; ?>
                   </td>
                 </tr>
@@ -784,118 +913,823 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             </tbody>
           </table>
         </div>
+
+        <!-- Top produtos -->
+        <div style="background:#fff;border:1.5px solid var(--cream);border-radius:18px;padding:1.5rem;">
+          <h5 style="font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--choco);margin:0 0 1.25rem;display:flex;align-items:center;gap:.5rem;">
+            <span style="display:inline-block;width:4px;height:16px;background:linear-gradient(180deg,#FB8C00,#E65100);border-radius:4px;"></span>
+            🏆 Produtos Mais Vendidos
+          </h5>
+
+          <?php if (empty($topProdutos)): ?>
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:160px;color:var(--muted);gap:.5rem;">
+              <i class="bi bi-trophy" style="font-size:2rem;"></i>
+              <span style="font-size:.85rem;">Sem dados de vendas ainda</span>
+            </div>
+          <?php else: ?>
+            <?php $maxVendas = max(array_column($topProdutos, 'total_vendido')) ?: 1; ?>
+            <?php foreach ($topProdutos as $i => $tp): ?>
+              <?php $pct = round(($tp['total_vendido'] / $maxVendas) * 100); ?>
+              <div style="margin-bottom:1rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+                  <div style="display:flex;align-items:center;gap:.5rem;">
+                    <span style="width:22px;height:22px;border-radius:50%;background:<?= ['#C2185B', '#FB8C00', '#1E88E5', '#43A047', '#9C27B0'][$i] ?? '#9e9e9e' ?>;color:#fff;font-size:.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;"><?= $i + 1 ?></span>
+                    <span style="font-size:.84rem;font-weight:600;color:var(--dark);"><?= htmlspecialchars($tp['nome_produto']) ?></span>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:.78rem;font-weight:700;color:var(--rose);">R$ <?= number_format((float)$tp['receita_total'], 2, ',', '.') ?></div>
+                    <div style="font-size:.7rem;color:var(--muted);"><?= (int)$tp['total_vendido'] ?> un.</div>
+                  </div>
+                </div>
+                <div style="background:var(--cream);border-radius:50px;height:6px;overflow:hidden;">
+                  <div style="background:<?= ['#C2185B', '#FB8C00', '#1E88E5', '#43A047', '#9C27B0'][$i] ?? '#9e9e9e' ?>;height:100%;width:<?= $pct ?>%;border-radius:50px;transition:width .6s;"></div>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          <?php endif; ?>
+        </div>
+
       </div>
 
-      <!-- ── Produtos mais vendidos ───────────────────────────── -->
-      <div class="admin-card" style="margin-top:1.5rem;">
-        <div class="admin-card-header">
-          <h5><i class="bi bi-trophy"></i> Produtos Mais Vendidos</h5>
+      <!-- ── Tabela completa de pedidos do período ─────────────── -->
+      <div style="background:#fff;border:1.5px solid var(--cream);border-radius:18px;padding:1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+          <h5 style="font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--choco);margin:0;display:flex;align-items:center;gap:.5rem;">
+            <span style="display:inline-block;width:4px;height:16px;background:linear-gradient(180deg,var(--rose),var(--rose-dark));border-radius:4px;"></span>
+            Todos os Pedidos
+          </h5>
+          <span style="font-size:.78rem;color:var(--muted);background:var(--cream);padding:.3rem .75rem;border-radius:50px;">
+            <?= count($todosPedidos) ?> pedido(s) no total
+          </span>
         </div>
+
+        <!-- Mini filtro de status inline -->
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem;" id="filtroRelatorio">
+          <button class="rel-filtro-btn active" data-status="" onclick="filtrarRelatorio('')">Todos</button>
+          <?php foreach ($statusLabels as $key => $label): ?>
+            <button class="rel-filtro-btn" data-status="<?= $key ?>" onclick="filtrarRelatorio('<?= $key ?>')">
+              <?= htmlspecialchars($label) ?>
+              <span style="background:rgba(0,0,0,.1);border-radius:50px;padding:.05rem .4rem;font-size:.7rem;margin-left:.2rem;"><?= $contStatus[$key] ?? 0 ?></span>
+            </button>
+          <?php endforeach; ?>
+        </div>
+
         <div class="table-responsive">
-          <table class="admin-table">
+          <table class="admin-table" id="tabelaRelatorio">
             <thead>
               <tr>
-                <th>Produto</th>
-                <th>Un. Vendidas</th>
-                <th>Faturamento</th>
+                <th>#</th>
+                <th>Cliente</th>
+                <th>Data Entrega</th>
+                <th>Pagamento</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Criado em</th>
               </tr>
             </thead>
             <tbody>
-              <?php foreach ($topProdutos as $tp): ?>
-                <tr>
+              <?php foreach ($todosPedidos as $ped): ?>
+                <tr data-status="<?= htmlspecialchars($ped['status']) ?>">
+                  <td><strong style="color:var(--rose);">#<?= (int)$ped['id'] ?></strong></td>
                   <td>
-                    <span style="font-size:1.1rem;margin-right:.4rem;"><?= htmlspecialchars($tp['emoji'] ?? '') ?></span>
-                    <strong><?= htmlspecialchars($tp['nome_produto']) ?></strong>
+                    <div style="font-weight:600;font-size:.88rem;"><?= htmlspecialchars($ped['nome']) ?></div>
+                    <div style="font-size:.74rem;color:var(--muted);"><?= htmlspecialchars($ped['telefone']) ?></div>
                   </td>
-                  <td><?= (int)$tp['total_vendido'] ?></td>
-                  <td><strong style="color:var(--rose);">R$ <?= number_format((float)$tp['receita_total'], 2, ',', '.') ?></strong></td>
+                  <td>
+                    <span style="font-size:.82rem;display:inline-flex;align-items:center;gap:.3rem;">
+                      <i class="bi bi-calendar2-event" style="color:var(--rose);"></i>
+                      <?= date('d/m/Y', strtotime($ped['data_entrega'])) ?>
+                    </span>
+                  </td>
+                  <td>
+                    <?php
+                    $icons = ['pix' => 'bi-qr-code', 'dinheiro' => 'bi-cash', 'cartao' => 'bi-credit-card'];
+                    $ic = $icons[$ped['forma_pagamento']] ?? 'bi-credit-card';
+                    ?>
+                    <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.82rem;">
+                      <i class="bi <?= $ic ?>" style="color:var(--choco-light);"></i>
+                      <?= ucfirst(htmlspecialchars($ped['forma_pagamento'])) ?>
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge-status <?= $statusBadge[$ped['status']] ?? 'badge-secondary' ?>">
+                      <?= htmlspecialchars($statusLabels[$ped['status']] ?? $ped['status']) ?>
+                    </span>
+                  </td>
+                  <td><strong style="color:var(--rose);">R$ <?= number_format((float)$ped['total'], 2, ',', '.') ?></strong></td>
+                  <td style="font-size:.78rem;color:var(--muted);">
+                    <?= date('d/m/Y H:i', strtotime($ped['criado_em'])) ?>
+                  </td>
                 </tr>
               <?php endforeach; ?>
-              <?php if (empty($topProdutos)): ?>
+              <?php if (empty($todosPedidos)): ?>
                 <tr>
-                  <td colspan="3" class="text-center text-muted py-4">Sem dados de vendas ainda.</td>
+                  <td colspan="7" class="text-center text-muted py-4">
+                    <i class="bi bi-inbox" style="font-size:1.5rem;display:block;margin-bottom:.5rem;"></i>
+                    Nenhum pedido registrado.
+                  </td>
                 </tr>
               <?php endif; ?>
             </tbody>
           </table>
         </div>
+
+        <!-- Rodapé com totais -->
+        <div style="display:flex;justify-content:flex-end;gap:2rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream);">
+          <div style="font-size:.82rem;color:var(--muted);">
+            Pedidos exibidos: <strong style="color:var(--dark);" id="totalFiltrado"><?= count($todosPedidos) ?></strong>
+          </div>
+          <div style="font-size:.82rem;color:var(--muted);">
+            Total filtrado: <strong style="color:var(--rose);" id="totalReceita">
+              R$ <?= number_format(array_sum(array_column($todosPedidos, 'total')), 2, ',', '.') ?>
+            </strong>
+          </div>
+        </div>
       </div>
 
     </section>
 
+    <!-- Estilos locais para a seção de relatórios -->
+    <style>
+      .rel-filtro-btn {
+        background: var(--cream);
+        border: none;
+        border-radius: 50px;
+        padding: .3rem .85rem;
+        font-size: .78rem;
+        font-weight: 600;
+        color: var(--muted);
+        cursor: pointer;
+        transition: all .15s;
+      }
+
+      .rel-filtro-btn:hover {
+        background: var(--rose-pale);
+        color: var(--rose);
+      }
+
+      .rel-filtro-btn.active {
+        background: var(--rose);
+        color: #fff;
+      }
+    </style>
+
+    <!-- Scripts da seção de relatórios -->
+    <script>
+      /* Filtro inline de status na tabela do relatório */
+      function filtrarRelatorio(status) {
+        document.querySelectorAll('#filtroRelatorio .rel-filtro-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.status === status);
+        });
+
+        let total = 0,
+          count = 0;
+        document.querySelectorAll('#tabelaRelatorio tbody tr[data-status]').forEach(tr => {
+          const show = !status || tr.dataset.status === status;
+          tr.style.display = show ? '' : 'none';
+          if (show) {
+            count++;
+            // Soma o valor da coluna "Total" (última coluna com R$)
+            const celula = tr.querySelector('td:nth-child(6) strong');
+            if (celula) {
+              const val = parseFloat(celula.textContent.replace('R$', '').replace('.', '').replace(',', '.').trim());
+              if (!isNaN(val)) total += val;
+            }
+          }
+        });
+
+        document.getElementById('totalFiltrado').textContent = count;
+        document.getElementById('totalReceita').textContent =
+          'R$ ' + total.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      }
+
+      /* Exportar CSV (básico — adaptável) */
+      function exportarRelatorio() {
+        const rows = [
+          ['#', 'Cliente', 'Entrega', 'Pagamento', 'Status', 'Total', 'Criado em']
+        ];
+        document.querySelectorAll('#tabelaRelatorio tbody tr[data-status]').forEach(tr => {
+          if (tr.style.display === 'none') return;
+          const cells = [...tr.querySelectorAll('td')].map(td => '"' + td.innerText.trim().replace(/\n/g, ' ') + '"');
+          rows.push(cells);
+        });
+        const csv = rows.map(r => r.join(',')).join('\n');
+        const blob = new Blob(['\ufeff' + csv], {
+          type: 'text/csv;charset=utf-8;'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `relatorio_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    </script>
+
+    <?php
+    /*
+ ┌─────────────────────────────────────────────────────────────────────────┐
+ │  SEÇÃO: GERENCIAR PACOTES  — substitui a <section id="secPacotes"> atual │
+ │  Requer ALTER TABLE no SQL (preco + titulo) — veja test_inserts.sql      │
+ └─────────────────────────────────────────────────────────────────────────┘
+*/
+    ?>
 
     <!-- ══════════════════════════════════════
-       SEÇÃO: PACOTES
-  ══════════════════════════════════════ -->
+     SEÇÃO: PACOTES
+══════════════════════════════════════ -->
     <section class="admin-section" id="secPacotes">
+
+      <!-- Cabeçalho -->
       <div class="admin-section-header">
         <div>
-          <h2><i class="bi bi-box-seam" style="color:var(--rose);font-size:1.3rem;"></i> Gerenciar Pacotes</h2>
-          <p class="section-subtitle">Crie e edite os pacotes disponíveis no site</p>
+          <h2>
+            <i class="bi bi-gift" style="color:var(--rose);font-size:1.3rem;"></i>
+            Gerenciar Pacotes
+          </h2>
+          <p class="section-subtitle">Crie e edite os pacotes exibidos no site para seus clientes</p>
         </div>
-        <button class="btn btn-primary" onclick="abrirModalPacote()">
-          <i class="bi bi-plus-lg"></i> Novo Pacote
-        </button>
+        <div style="display:flex;gap:.6rem;align-items:center;">
+          <button class="btn btn-outline" id="btnToggleView" onclick="togglePacoteView(this)" title="Alternar visualização">
+            <i class="bi bi-grid-3x3-gap"></i> Cards
+          </button>
+          <button class="btn btn-primary" onclick="abrirModalPacote()">
+            <i class="bi bi-plus-lg"></i> Novo Pacote
+          </button>
+        </div>
       </div>
-      <div class="admin-card">
-        <div class="table-responsive">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Quantidade</th>
-                <th>Máx. Sabores</th>
-                <th>Descrição</th>
-                <th>Popular</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($pacotes as $pac): ?>
-                <tr>
-                  <td><span style="color:var(--muted);font-size:.8rem;"><?= (int)$pac['id'] ?></span></td>
-                  <td><strong style="color:var(--rose);font-size:1.1rem;"><?= (int)$pac['quantidade'] ?></strong> <small class="text-muted">un</small></td>
-                  <td><?= (int)$pac['max_sabores'] ?> sabores</td>
-                  <td><?= htmlspecialchars($pac['descricao']) ?></td>
-                  <td>
-                    <?php if ($pac['popular']): ?>
-                      <span class="badge-status badge-warning"><i class="bi bi-star-fill"></i> Popular</span>
-                    <?php else: ?>
-                      <span style="color:var(--muted);font-size:.82rem;">—</span>
+
+      <!-- Resumo rápido -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem;">
+        <?php
+        $totalPac   = count($pacotes);
+        $ativosPac  = count(array_filter($pacotes, fn($p) => $p['ativo']));
+        $popularPac = array_values(array_filter($pacotes, fn($p) => $p['popular']));
+        ?>
+        <div style="background:#fff;border:1px solid var(--cream);border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;gap:.85rem;">
+          <div style="width:42px;height:42px;border-radius:12px;background:var(--rose-pale);display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-gift" style="color:var(--rose);font-size:1.2rem;"></i>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Total</div>
+            <div style="font-size:1.5rem;font-weight:800;color:var(--dark);line-height:1;"><?= $totalPac ?></div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--cream);border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;gap:.85rem;">
+          <div style="width:42px;height:42px;border-radius:12px;background:#e8f5e9;display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-check-circle-fill" style="color:#43A047;font-size:1.2rem;"></i>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Ativos</div>
+            <div style="font-size:1.5rem;font-weight:800;color:var(--dark);line-height:1;"><?= $ativosPac ?></div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--cream);border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;gap:.85rem;">
+          <div style="width:42px;height:42px;border-radius:12px;background:#fff8e1;display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-star-fill" style="color:#FB8C00;font-size:1.2rem;"></i>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Popular</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--dark);line-height:1.3;">
+              <?= !empty($popularPac) ? (int)$popularPac[0]['quantidade'] . ' un' : '—' ?>
+            </div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--cream);border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:center;gap:.85rem;">
+          <div style="width:42px;height:42px;border-radius:12px;background:var(--choco-pale);display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-box-seam" style="color:var(--choco);font-size:1.2rem;"></i>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Inativos</div>
+            <div style="font-size:1.5rem;font-weight:800;color:var(--dark);line-height:1;"><?= $totalPac - $ativosPac ?></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: CARDS (padrão) -->
+      <div id="viewCards">
+        <?php if (empty($pacotes)): ?>
+          <div style="background:#fff;border:1px solid var(--cream);border-radius:16px;padding:3rem;text-align:center;color:var(--muted);">
+            <i class="bi bi-box-seam" style="font-size:2.5rem;display:block;margin-bottom:.75rem;"></i>
+            <p>Nenhum pacote cadastrado ainda. Clique em <strong>Novo Pacote</strong> para começar.</p>
+          </div>
+        <?php else: ?>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem;">
+            <?php foreach ($pacotes as $pac):
+              $isPopular = (bool)$pac['popular'];
+              $isAtivo   = (bool)$pac['ativo'];
+              $precoUnit = isset($pac['preco']) ? (float)$pac['preco'] : null;
+              $titulo    = !empty($pac['titulo']) ? $pac['titulo'] : null;
+              // Gera cor de fundo baseada na quantidade
+              $cores = [
+                50  => ['bg' => '#fdf2f8', 'border' => '#f3c6e0', 'accent' => '#C2185B'],
+                100 => ['bg' => '#fff8f0', 'border' => '#ffd9a8', 'accent' => '#FB8C00'],
+                200 => ['bg' => '#f0f7ff', 'border' => '#a8d4ff', 'accent' => '#1E88E5'],
+                300 => ['bg' => '#f2fdf4', 'border' => '#a8e6b4', 'accent' => '#43A047'],
+              ];
+              $qtd = (int)$pac['quantidade'];
+              $cor = $cores[$qtd] ?? ['bg' => '#fafafa', 'border' => '#e0e0e0', 'accent' => '#5D4037'];
+            ?>
+              <div class="pacote-card <?= $isPopular ? 'pacote-popular' : '' ?> <?= !$isAtivo ? 'pacote-inativo' : '' ?>"
+                style="background:<?= $cor['bg'] ?>;border:1.5px solid <?= $isPopular ? $cor['accent'] : $cor['border'] ?>;border-radius:18px;padding:1.5rem;position:relative;transition:transform .18s,box-shadow .18s;cursor:default;"
+                onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.09)'"
+                onmouseleave="this.style.transform='';this.style.boxShadow=''">
+
+                <!-- Badges topo -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+                  <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                    <?php if ($isPopular): ?>
+                      <span style="background:<?= $cor['accent'] ?>;color:#fff;font-size:.68rem;font-weight:700;padding:.25rem .65rem;border-radius:50px;letter-spacing:.04em;display:inline-flex;align-items:center;gap:.3rem;">
+                        <i class="bi bi-star-fill"></i> MAIS POPULAR
+                      </span>
                     <?php endif; ?>
-                  </td>
-                  <td>
-                    <?php if ($pac['ativo']): ?>
-                      <span class="badge-status badge-success">Ativo</span>
-                    <?php else: ?>
-                      <span class="badge-status badge-danger">Inativo</span>
+                    <?php if (!$isAtivo): ?>
+                      <span style="background:#e0e0e0;color:#757575;font-size:.68rem;font-weight:700;padding:.25rem .65rem;border-radius:50px;letter-spacing:.04em;">
+                        INATIVO
+                      </span>
                     <?php endif; ?>
-                  </td>
-                  <td style="display:flex;gap:.35rem;">
+                  </div>
+                  <!-- Ações rápidas -->
+                  <div style="display:flex;gap:.35rem;">
                     <button class="btn btn-xs btn-outline"
-                      onclick='abrirModalPacote(<?= htmlspecialchars(json_encode($pac, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), ENT_QUOTES) ?>)'
-                      title="Editar">
+                      onclick='abrirModalPacote(<?= htmlspecialchars(json_encode($pac, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)) ?>)'
+                      title="Editar pacote" style="border-radius:8px;">
                       <i class="bi bi-pencil"></i>
                     </button>
                     <button class="btn btn-xs btn-danger"
                       onclick="excluirPacote(<?= (int)$pac['id'] ?>, <?= (int)$pac['quantidade'] ?>)"
-                      title="Desativar">
+                      title="Desativar" style="border-radius:8px;">
                       <i class="bi bi-trash"></i>
                     </button>
-                  </td>
-                </tr>
-              <?php endforeach; ?>
-              <?php if (empty($pacotes)): ?>
+                  </div>
+                </div>
+
+                <!-- Quantidade destaque -->
+                <div style="margin-bottom:.5rem;">
+                  <span style="font-size:3rem;font-weight:900;color:<?= $cor['accent'] ?>;line-height:1;font-family:'Cormorant Garamond',serif;">
+                    <?= (int)$pac['quantidade'] ?>
+                  </span>
+                  <span style="font-size:.9rem;font-weight:600;color:var(--muted);margin-left:.2rem;">unidades</span>
+                </div>
+
+                <!-- Título opcional -->
+                <?php if ($titulo): ?>
+                  <div style="font-size:.9rem;font-weight:700;color:var(--dark);margin-bottom:.35rem;"><?= htmlspecialchars($titulo) ?></div>
+                <?php endif; ?>
+
+                <!-- Descrição -->
+                <p style="font-size:.82rem;color:var(--muted);margin-bottom:.85rem;line-height:1.45;min-height:36px;">
+                  <?= htmlspecialchars($pac['descricao']) ?: '<em>Sem descrição</em>' ?>
+                </p>
+
+                <!-- Detalhes -->
+                <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem;">
+                  <div style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;">
+                    <i class="bi bi-palette" style="color:<?= $cor['accent'] ?>;"></i>
+                    <span style="color:var(--muted);">Até</span>
+                    <strong style="color:var(--dark);"><?= (int)$pac['max_sabores'] ?> sabores</strong>
+                  </div>
+                  <?php if ($precoUnit !== null): ?>
+                    <div style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;">
+                      <i class="bi bi-tag" style="color:<?= $cor['accent'] ?>;"></i>
+                      <span style="color:var(--muted);">Preço unitário</span>
+                      <strong style="color:var(--dark);">R$ <?= number_format($precoUnit, 2, ',', '.') ?></strong>
+                    </div>
+                    <?php if ($precoUnit > 0): ?>
+                      <div style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;">
+                        <i class="bi bi-currency-dollar" style="color:<?= $cor['accent'] ?>;"></i>
+                        <span style="color:var(--muted);">Total do pacote</span>
+                        <strong style="color:<?= $cor['accent'] ?>;">R$ <?= number_format($precoUnit * $qtd, 2, ',', '.') ?></strong>
+                      </div>
+                    <?php endif; ?>
+                  <?php endif; ?>
+                  <div style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;">
+                    <i class="bi bi-calendar3" style="color:<?= $cor['accent'] ?>;"></i>
+                    <span style="color:var(--muted);">Criado em</span>
+                    <span style="color:var(--dark);"><?= date('d/m/Y', strtotime($pac['criado_em'])) ?></span>
+                  </div>
+                </div>
+
+                <!-- Barra visual de sabores -->
+                <div style="margin-top:auto;">
+                  <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-bottom:.3rem;">
+                    <span>Variedade de sabores</span>
+                    <span><?= (int)$pac['max_sabores'] ?></span>
+                  </div>
+                  <div style="background:rgba(0,0,0,.07);border-radius:50px;height:5px;overflow:hidden;">
+                    <div style="background:<?= $cor['accent'] ?>;height:100%;width:<?= min(100, (int)$pac['max_sabores'] * 8) ?>%;border-radius:50px;transition:width .5s;"></div>
+                  </div>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- VIEW: TABELA (oculta por padrão) -->
+      <div id="viewTabela" style="display:none;">
+        <div class="admin-card">
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
                 <tr>
-                  <td colspan="7" class="text-center text-muted py-4">Nenhum pacote cadastrado.</td>
+                  <th>#</th>
+                  <th>Título / Qtd.</th>
+                  <th>Máx. Sabores</th>
+                  <th>Descrição</th>
+                  <th>Preço Unit.</th>
+                  <th>Total</th>
+                  <th>Popular</th>
+                  <th>Status</th>
+                  <th>Criado em</th>
+                  <th>Ações</th>
                 </tr>
-              <?php endif; ?>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <?php foreach ($pacotes as $pac):
+                  $precoUnit = isset($pac['preco']) ? (float)$pac['preco'] : null;
+                ?>
+                  <tr>
+                    <td><span style="color:var(--muted);font-size:.8rem;"><?= (int)$pac['id'] ?></span></td>
+                    <td>
+                      <?php if (!empty($pac['titulo'])): ?>
+                        <div style="font-weight:700;font-size:.9rem;color:var(--dark);"><?= htmlspecialchars($pac['titulo']) ?></div>
+                      <?php endif; ?>
+                      <strong style="color:var(--rose);font-size:1.05rem;"><?= (int)$pac['quantidade'] ?></strong>
+                      <small class="text-muted"> un</small>
+                    </td>
+                    <td><?= (int)$pac['max_sabores'] ?> sabores</td>
+                    <td style="max-width:200px;font-size:.83rem;color:var(--muted);"><?= htmlspecialchars($pac['descricao']) ?: '—' ?></td>
+                    <td>
+                      <?= $precoUnit !== null ? '<strong>R$ ' . number_format($precoUnit, 2, ',', '.') . '</strong>' : '<span style="color:var(--muted);">—</span>' ?>
+                    </td>
+                    <td>
+                      <?php if ($precoUnit !== null && $precoUnit > 0): ?>
+                        <strong style="color:var(--rose);">R$ <?= number_format($precoUnit * (int)$pac['quantidade'], 2, ',', '.') ?></strong>
+                      <?php else: ?>
+                        <span style="color:var(--muted);">—</span>
+                      <?php endif; ?>
+                    </td>
+                    <td>
+                      <?php if ($pac['popular']): ?>
+                        <span class="badge-status badge-warning"><i class="bi bi-star-fill"></i> Popular</span>
+                      <?php else: ?>
+                        <span style="color:var(--muted);font-size:.82rem;">—</span>
+                      <?php endif; ?>
+                    </td>
+                    <td>
+                      <?php if ($pac['ativo']): ?>
+                        <span class="badge-status badge-success">Ativo</span>
+                      <?php else: ?>
+                        <span class="badge-status badge-danger">Inativo</span>
+                      <?php endif; ?>
+                    </td>
+                    <td style="font-size:.8rem;color:var(--muted);"><?= date('d/m/Y', strtotime($pac['criado_em'])) ?></td>
+                    <td style="display:flex;gap:.35rem;">
+                      <button class="btn btn-xs btn-outline"
+                        onclick='abrirModalPacote(<?= htmlspecialchars(json_encode($pac, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)) ?>)'
+                        title="Editar">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button class="btn btn-xs btn-danger"
+                        onclick="excluirPacote(<?= (int)$pac['id'] ?>, <?= (int)$pac['quantidade'] ?>)"
+                        title="Desativar">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+                <?php if (empty($pacotes)): ?>
+                  <tr>
+                    <td colspan="10" class="text-center text-muted py-4">
+                      <i class="bi bi-inbox" style="font-size:1.5rem;display:block;margin-bottom:.5rem;"></i>
+                      Nenhum pacote cadastrado.
+                    </td>
+                  </tr>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+
     </section>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+     MODAL: CRIAR / EDITAR PACOTE  (versão reformulada)
+═══════════════════════════════════════════════════════ -->
+    <div class="modal fade" id="modalPacote" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius:20px;overflow:hidden;border:none;box-shadow:0 20px 60px rgba(0,0,0,.15);">
+
+          <!-- Header decorativo -->
+          <div style="background:linear-gradient(135deg,var(--rose-dark) 0%,var(--rose) 100%);padding:1.5rem 1.75rem;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;background:rgba(255,255,255,.07);border-radius:50%;"></div>
+            <div style="position:absolute;bottom:-30px;right:60px;width:80px;height:80px;background:rgba(255,255,255,.05);border-radius:50%;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;position:relative;">
+              <div>
+                <h5 class="modal-title" id="modalPacoteTitulo" style="color:#fff;font-weight:700;font-size:1.15rem;margin:0;display:flex;align-items:center;gap:.5rem;">
+                  <i class="bi bi-gift"></i> Novo Pacote
+                </h5>
+                <p style="color:rgba(255,255,255,.7);font-size:.82rem;margin:.25rem 0 0;">Preencha os dados do pacote que aparecerá no site</p>
+              </div>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+          </div>
+
+          <div class="modal-body" style="padding:1.75rem;background:#fafafa;">
+            <form id="formPacote">
+              <input type="hidden" name="id" id="pacoteId">
+
+              <!-- Preview card ao vivo -->
+              <div id="pacotePreview" style="background:linear-gradient(135deg,#fdf2f8,#fff8f0);border:1.5px solid #f3c6e0;border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1.25rem;">
+                <div style="flex-shrink:0;text-align:center;min-width:80px;">
+                  <div id="prevQtd" style="font-size:2.5rem;font-weight:900;color:var(--rose);font-family:'Cormorant Garamond',serif;line-height:1;">—</div>
+                  <div style="font-size:.7rem;color:var(--muted);font-weight:600;">UNIDADES</div>
+                </div>
+                <div style="flex:1;border-left:1px solid #f3c6e0;padding-left:1.25rem;">
+                  <div id="prevTitulo" style="font-size:.95rem;font-weight:700;color:var(--dark);margin-bottom:.2rem;">—</div>
+                  <div id="prevDesc" style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem;">Sem descrição</div>
+                  <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                    <span style="font-size:.75rem;color:var(--muted);"><i class="bi bi-palette" style="color:var(--rose);"></i> <span id="prevSabores">—</span> sabores</span>
+                    <span style="font-size:.75rem;color:var(--muted);"><i class="bi bi-tag" style="color:var(--rose);"></i> R$ <span id="prevPreco">—</span>/un</span>
+                  </div>
+                </div>
+                <div style="flex-shrink:0;text-align:right;">
+                  <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem;">Total</div>
+                  <div id="prevTotal" style="font-size:1.3rem;font-weight:800;color:var(--rose);">—</div>
+                </div>
+              </div>
+
+              <!-- Linha 1: Quantidade + Título -->
+              <div class="form-row" style="gap:1rem;">
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">
+                    <i class="bi bi-123" style="color:var(--rose);"></i>
+                    Quantidade (un.) <span class="required">*</span>
+                  </label>
+                  <input type="number" class="form-control" name="quantidade" id="pacoteQtd"
+                    required min="1" placeholder="Ex: 100"
+                    oninput="atualizarPreview()">
+                  <small style="color:var(--muted);font-size:.75rem;">Número total de salgados/doces no pacote</small>
+                </div>
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">
+                    <i class="bi bi-card-text" style="color:var(--rose);"></i>
+                    Título do Pacote
+                  </label>
+                  <input type="text" class="form-control" name="titulo" id="pacoteTitulo"
+                    maxlength="60" placeholder="Ex: Kit Festa, Mini Kit…"
+                    oninput="atualizarPreview()">
+                  <small style="color:var(--muted);font-size:.75rem;">Nome que aparece como destaque (opcional)</small>
+                </div>
+              </div>
+
+              <!-- Linha 2: Sabores + Preço -->
+              <div class="form-row" style="gap:1rem;">
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">
+                    <i class="bi bi-palette" style="color:var(--rose);"></i>
+                    Máx. de Sabores <span class="required">*</span>
+                  </label>
+                  <input type="number" class="form-control" name="max_sabores" id="pacoteSabores"
+                    required min="1" max="50" placeholder="Ex: 5"
+                    oninput="atualizarPreview()">
+                  <small style="color:var(--muted);font-size:.75rem;">Quantidade máxima de sabores diferentes</small>
+                </div>
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">
+                    <i class="bi bi-currency-dollar" style="color:var(--rose);"></i>
+                    Preço por Unidade (R$)
+                  </label>
+                  <input type="number" class="form-control" name="preco" id="pacotePreco"
+                    min="0" step="0.01" placeholder="Ex: 4.50"
+                    oninput="atualizarPreview()">
+                  <small style="color:var(--muted);font-size:.75rem;">Valor unitário de cada item do pacote</small>
+                </div>
+              </div>
+
+              <!-- Descrição -->
+              <div class="form-group">
+                <label class="form-label">
+                  <i class="bi bi-chat-quote" style="color:var(--rose);"></i>
+                  Descrição / Slogan
+                </label>
+                <textarea class="form-control" name="descricao" id="pacoteDesc"
+                  maxlength="100" rows="2"
+                  placeholder="Ex: Ideal para festas médias com muita variedade!"
+                  oninput="atualizarPreview()" style="resize:none;"></textarea>
+                <div style="display:flex;justify-content:space-between;margin-top:.2rem;">
+                  <small style="color:var(--muted);font-size:.75rem;">Aparece como subtítulo no card do site</small>
+                  <small id="descContador" style="color:var(--muted);font-size:.75rem;">0/100</small>
+                </div>
+              </div>
+
+              <!-- Opções: popular + ativo lado a lado -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+                <label style="display:flex;align-items:center;gap:.75rem;background:#fff;border:1.5px solid var(--cream);border-radius:12px;padding:1rem;cursor:pointer;transition:border-color .15s;"
+                  id="lblPopular"
+                  onmouseenter="this.style.borderColor='var(--warning)'"
+                  onmouseleave="this.style.borderColor=document.getElementById('pacotePopular').checked?'var(--warning)':'var(--cream)'">
+                  <input class="form-check-input" type="checkbox" name="popular" id="pacotePopular" value="1"
+                    onchange="toggleLabel('lblPopular','pacotePopular','#FB8C00')"
+                    style="width:20px;height:20px;margin:0;accent-color:#FB8C00;">
+                  <div>
+                    <div style="font-weight:700;font-size:.88rem;color:var(--dark);display:flex;align-items:center;gap:.4rem;">
+                      <i class="bi bi-star-fill" style="color:#FB8C00;"></i> Destacar como Popular
+                    </div>
+                    <div style="font-size:.74rem;color:var(--muted);">Exibe o selo "Mais Popular" no site</div>
+                  </div>
+                </label>
+
+                <label style="display:flex;align-items:center;gap:.75rem;background:#fff;border:1.5px solid var(--cream);border-radius:12px;padding:1rem;cursor:pointer;transition:border-color .15s;"
+                  id="lblAtivo"
+                  onmouseenter="this.style.borderColor='#43A047'"
+                  onmouseleave="this.style.borderColor=document.getElementById('pacoteAtivo').checked?'#43A047':'var(--cream)'">
+                  <input class="form-check-input" type="checkbox" name="ativo" id="pacoteAtivo" value="1" checked
+                    onchange="toggleLabel('lblAtivo','pacoteAtivo','#43A047')"
+                    style="width:20px;height:20px;margin:0;accent-color:#43A047;">
+                  <div>
+                    <div style="font-weight:700;font-size:.88rem;color:var(--dark);display:flex;align-items:center;gap:.4rem;">
+                      <i class="bi bi-eye-fill" style="color:#43A047;"></i> Pacote Ativo
+                    </div>
+                    <div style="font-size:.74rem;color:var(--muted);">Visível para clientes no site</div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Botão salvar -->
+              <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top:.5rem;border-radius:12px;font-size:1rem;">
+                <i class="bi bi-check2-circle"></i> Salvar Pacote
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Estilos locais para a seção de pacotes ── -->
+    <style>
+      .pacote-inativo {
+        opacity: .55;
+        filter: grayscale(.3);
+      }
+
+      .pacote-popular {
+        box-shadow: 0 4px 18px rgba(0, 0, 0, .08);
+      }
+    </style>
+
+    <!-- ── Scripts da seção de pacotes ── -->
+    <script>
+      /* Alterna entre cards e tabela */
+      function togglePacoteView(btn) {
+        const cards = document.getElementById('viewCards');
+        const tabela = document.getElementById('viewTabela');
+        if (cards.style.display === 'none') {
+          cards.style.display = '';
+          tabela.style.display = 'none';
+          btn.innerHTML = '<i class="bi bi-grid-3x3-gap"></i> Cards';
+        } else {
+          cards.style.display = 'none';
+          tabela.style.display = '';
+          btn.innerHTML = '<i class="bi bi-list-ul"></i> Tabela';
+        }
+      }
+
+      /* Destaca o label quando o checkbox é marcado */
+      function toggleLabel(labelId, checkId, cor) {
+        const lbl = document.getElementById(labelId);
+        const chk = document.getElementById(checkId);
+        lbl.style.borderColor = chk.checked ? cor : 'var(--cream)';
+        lbl.style.background = chk.checked ? (cor === '#FB8C00' ? '#fff8e1' : '#e8f5e9') : '#fff';
+      }
+
+      /* Atualiza o preview ao vivo */
+      function atualizarPreview() {
+        const qtd = parseInt(document.getElementById('pacoteQtd').value) || 0;
+        const sab = parseInt(document.getElementById('pacoteSabores').value) || 0;
+        const preco = parseFloat(document.getElementById('pacotePreco').value) || 0;
+        const titulo = document.getElementById('pacoteTitulo').value.trim() || '—';
+        const desc = document.getElementById('pacoteDesc').value.trim() || 'Sem descrição';
+
+        document.getElementById('prevQtd').textContent = qtd > 0 ? qtd : '—';
+        document.getElementById('prevTitulo').textContent = titulo;
+        document.getElementById('prevDesc').textContent = desc;
+        document.getElementById('prevSabores').textContent = sab > 0 ? sab : '—';
+        document.getElementById('prevPreco').textContent = preco > 0 ? preco.toFixed(2).replace('.', ',') : '—';
+
+        const total = qtd * preco;
+        document.getElementById('prevTotal').textContent =
+          total > 0 ? 'R$ ' + total.toFixed(2).replace('.', ',') : '—';
+
+        // Contador de caracteres da descrição
+        document.getElementById('descContador').textContent =
+          document.getElementById('pacoteDesc').value.length + '/100';
+      }
+
+      /* Abre o modal de pacote (create ou edit) */
+      function abrirModalPacote(pac) {
+        const titulo = pac ? 'Editar Pacote' : 'Novo Pacote';
+        document.getElementById('modalPacoteTitulo').innerHTML =
+          `<i class="bi bi-gift"></i> ${titulo}`;
+
+        document.getElementById('pacoteId').value = pac?.id ?? '';
+        document.getElementById('pacoteQtd').value = pac?.quantidade ?? '';
+        document.getElementById('pacoteSabores').value = pac?.max_sabores ?? '';
+        document.getElementById('pacoteDesc').value = pac?.descricao ?? '';
+        document.getElementById('pacotePreco').value = pac?.preco ?? '';
+        document.getElementById('pacoteTitulo').value = pac?.titulo ?? '';
+        document.getElementById('pacotePopular').checked = pac?.popular == 1;
+        document.getElementById('pacoteAtivo').checked = pac ? pac.ativo == 1 : true;
+
+        // Sincroniza estilos dos labels
+        toggleLabel('lblPopular', 'pacotePopular', '#FB8C00');
+        toggleLabel('lblAtivo', 'lblAtivo', '#43A047');
+        // Corrigido:
+        document.getElementById('lblAtivo').style.borderColor =
+          document.getElementById('pacoteAtivo').checked ? '#43A047' : 'var(--cream)';
+        document.getElementById('lblAtivo').style.background =
+          document.getElementById('pacoteAtivo').checked ? '#e8f5e9' : '#fff';
+
+        atualizarPreview();
+        new bootstrap.Modal(document.getElementById('modalPacote')).show();
+      }
+
+      /* Submit do form de pacote */
+      document.getElementById('formPacote').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = this.querySelector('[type=submit]');
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Salvando…';
+
+        const fd = new FormData(this);
+
+        fetch('actions/pacote_salvar.php', {
+            method: 'POST',
+            body: fd
+          })
+          .then(r => r.json())
+          .then(data => {
+            bootstrap.Modal.getInstance(document.getElementById('modalPacote')).hide();
+            Swal.fire({
+              icon: data.sucesso ? 'success' : 'error',
+              title: data.sucesso ? 'Salvo!' : 'Erro',
+              text: data.mensagem,
+              confirmButtonColor: 'var(--rose)',
+              timer: data.sucesso ? 1800 : undefined,
+              showConfirmButton: !data.sucesso
+            }).then(() => {
+              if (data.sucesso) location.reload();
+            });
+          })
+          .catch(() => Swal.fire({
+            icon: 'error',
+            title: 'Falha de conexão',
+            confirmButtonColor: 'var(--rose)'
+          }))
+          .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+          });
+      });
+
+      /* Excluir/desativar pacote */
+      function excluirPacote(id, qtd) {
+        Swal.fire({
+          title: `Desativar pacote de ${qtd} un.?`,
+          text: 'O pacote ficará invisível no site, mas não será removido do banco.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#E53935',
+          cancelButtonColor: '#9e9e9e',
+          confirmButtonText: '<i class="bi bi-eye-slash"></i> Desativar',
+          cancelButtonText: 'Cancelar'
+        }).then(res => {
+          if (!res.isConfirmed) return;
+          const fd = new FormData();
+          fd.append('id', id);
+          fetch('actions/pacote_excluir.php', {
+              method: 'POST',
+              body: fd
+            })
+            .then(r => r.json())
+            .then(data => {
+              Swal.fire({
+                icon: data.sucesso ? 'success' : 'error',
+                title: data.mensagem,
+                confirmButtonColor: 'var(--rose)',
+                timer: data.sucesso ? 1600 : undefined,
+                showConfirmButton: !data.sucesso
+              }).then(() => {
+                if (data.sucesso) location.reload();
+              });
+            });
+        });
+      }
+    </script>
 
     <!-- ═══════════════ MODAL: PACOTE ═══════════════ -->
     <div class="modal fade" id="modalPacote" tabindex="-1">
@@ -1244,7 +2078,7 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
 
       function _atualizarTagsPorCategoria(catId, tagAtual) {
         const select = document.getElementById('produtoTag');
-        const tags   = _tagsPorCategoria[parseInt(catId)] || ['Clássico'];
+        const tags = _tagsPorCategoria[parseInt(catId)] || ['Clássico'];
         select.innerHTML = tags.map(t =>
           `<option value="${t}"${t === tagAtual ? ' selected' : ''}>${t}</option>`
         ).join('');
@@ -1254,24 +2088,24 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
       function abrirModalProduto(prod = null) {
         document.getElementById('modalProdutoTitulo').textContent =
           prod ? '✏️ Editar Produto' : '➕ Novo Produto';
-        document.getElementById('produtoId').value        = prod?.id ?? '';
-        document.getElementById('produtoNome').value      = prod?.nome ?? '';
-        document.getElementById('produtoEmoji').value     = prod?.emoji ?? '';
+        document.getElementById('produtoId').value = prod?.id ?? '';
+        document.getElementById('produtoNome').value = prod?.nome ?? '';
+        document.getElementById('produtoEmoji').value = prod?.emoji ?? '';
         document.getElementById('produtoDescricao').value = prod?.descricao ?? '';
-        document.getElementById('produtoCat').value       = prod?.categoria_id ?? '1';
-        document.getElementById('produtoPreco').value     = prod?.preco ?? '';
-        document.getElementById('produtoAtivo').checked   = prod ? prod.ativo == 1 : true;
+        document.getElementById('produtoCat').value = prod?.categoria_id ?? '1';
+        document.getElementById('produtoPreco').value = prod?.preco ?? '';
+        document.getElementById('produtoAtivo').checked = prod ? prod.ativo == 1 : true;
 
         // Preenche o select de tags conforme a categoria atual
         _atualizarTagsPorCategoria(prod?.categoria_id ?? 1, prod?.tag ?? 'Clássico');
 
         // Preview da imagem existente
-        const wrap    = document.getElementById('produtoImagemWrap');
+        const wrap = document.getElementById('produtoImagemWrap');
         const preview = document.getElementById('produtoImagemPreview');
         const fileInput = document.getElementById('produtoImagem');
         fileInput.value = ''; // limpa seleção anterior
         if (prod?.imagem) {
-          preview.src     = `../uploads/produtos/${prod.imagem}`;
+          preview.src = `../uploads/produtos/${prod.imagem}`;
           wrap.style.display = '';
         } else {
           wrap.style.display = 'none';
@@ -1288,12 +2122,12 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
 
       /* Preview ao selecionar nova imagem */
       document.getElementById('produtoImagem').addEventListener('change', function() {
-        const wrap    = document.getElementById('produtoImagemWrap');
+        const wrap = document.getElementById('produtoImagemWrap');
         const preview = document.getElementById('produtoImagemPreview');
         if (this.files && this.files[0]) {
           const reader = new FileReader();
           reader.onload = e => {
-            preview.src        = e.target.result;
+            preview.src = e.target.result;
             wrap.style.display = '';
           };
           reader.readAsDataURL(this.files[0]);
@@ -1630,62 +2464,7 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
         });
 
         /* ══ CHARTS ══════════════════════════════════════════════ */
-
-        /* Faturamento mensal (bar) */
-        const meses = <?= json_encode(array_column($faturMes, 'mes_label')) ?>;
-        const fatMes = <?= json_encode(array_column($faturMes, 'faturamento')) ?>;
-        const ctxFat = document.getElementById('chartFaturamento');
-        if (ctxFat) {
-          new Chart(ctxFat, {
-            type: 'bar',
-            data: {
-              labels: meses.slice(-6),
-              datasets: [{
-                label: 'Faturamento (R$)',
-                data: fatMes.slice(-6),
-                backgroundColor: [
-                  'rgba(194,24,91,.85)', 'rgba(194,24,91,.75)', 'rgba(194,24,91,.65)',
-                  'rgba(194,24,91,.55)', 'rgba(194,24,91,.45)', 'rgba(194,24,91,.85)'
-                ],
-                borderColor: '#C2185B',
-                borderWidth: 0,
-                borderRadius: 8,
-                borderSkipped: false
-              }]
-            },
-            options: {
-              responsive: true,
-              plugins: {
-                legend: {
-                  display: false
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  grid: {
-                    color: 'rgba(0,0,0,.04)'
-                  },
-                  ticks: {
-                    font: {
-                      size: 11
-                    }
-                  }
-                },
-                x: {
-                  grid: {
-                    display: false
-                  },
-                  ticks: {
-                    font: {
-                      size: 11
-                    }
-                  }
-                }
-              }
-            }
-          });
-        }
+        /* chartFaturamento é inicializado abaixo via inicializarChartMensal() */
 
         /* Top 5 produtos (doughnut) */
         const topNomes = <?= json_encode(array_column($topProdutos, 'nome_produto')) ?>;
@@ -1725,18 +2504,18 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           });
         }
 
-        /* Status dos pedidos (doughnut) */
+        /* Status dos pedidos — secDashboard (doughnut) */
         const ctxStatus = document.getElementById('chartStatus');
         if (ctxStatus) {
           const statusLabels = <?= json_encode(array_values($statusLabels)) ?>;
-          const statusData   = <?= json_encode(array_values($contStatus)) ?>;
+          const statusData = <?= json_encode(array_values($contStatus)) ?>;
           new Chart(ctxStatus, {
             type: 'doughnut',
             data: {
               labels: statusLabels,
               datasets: [{
                 data: statusData,
-                backgroundColor: ['#FB8C00','#1E88E5','#C2185B','#43A047','#E53935'],
+                backgroundColor: ['#FB8C00', '#1E88E5', '#C2185B', '#43A047', '#E53935'],
                 borderWidth: 3,
                 borderColor: '#fff',
                 hoverOffset: 6
@@ -1747,75 +2526,163 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
               maintainAspectRatio: false,
               plugins: {
                 legend: { display: false },
-                tooltip: {
-                  callbacks: {
-                    label: ctx => ` ${ctx.label}: ${ctx.raw} pedidos`
-                  }
-                }
+                tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} pedidos` } }
               },
               cutout: '65%'
             }
           });
         }
 
-        /* Faturamento diário (line) */
-        const diasLabel = <?= json_encode(array_column(array_reverse($fatDiario), 'dia')) ?>;
-        const diasFat = <?= json_encode(array_column(array_reverse($fatDiario), 'faturamento')) ?>;
+        /* Faturamento diário (line) — lê dados do data-* do canvas */
         const ctxDiario = document.getElementById('chartFaturamentoDiario');
         if (ctxDiario) {
-          new Chart(ctxDiario, {
-            type: 'line',
-            data: {
-              labels: diasLabel,
-              datasets: [{
-                label: 'Faturamento Diário (R$)',
-                data: diasFat,
-                borderColor: '#C2185B',
-                backgroundColor: 'rgba(194,24,91,.08)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 4,
-                pointBackgroundColor: '#C2185B',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2
-              }]
-            },
-            options: {
-              responsive: true,
-              plugins: {
-                legend: {
-                  display: false
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  grid: {
-                    color: 'rgba(0,0,0,.04)'
-                  },
-                  ticks: {
-                    font: {
-                      size: 11
-                    }
-                  }
-                },
-                x: {
-                  grid: {
-                    display: false
-                  },
-                  ticks: {
-                    font: {
-                      size: 10
-                    },
-                    maxTicksLimit: 10
-                  }
-                }
-              }
-            }
-          });
+          inicializarChartDiario(ctxDiario);
+        }
+
+        /* Faturamento mensal (bar) — lê dados do data-* do canvas */
+        const ctxFatRel = document.getElementById('chartFaturamento');
+        if (ctxFatRel) {
+          inicializarChartMensal(ctxFatRel);
+        }
+
+        /* Status dos pedidos — secRelatorios (doughnut) — lê dados do data-* */
+        const ctxStatusRel = document.getElementById('chartStatusRel');
+        if (ctxStatusRel) {
+          inicializarChartStatusRel(ctxStatusRel);
         }
 
       }); // fim DOMContentLoaded
+    </script>
+
+    <script>
+      /* ── Funções de inicialização de charts (reutilizáveis) ─────── */
+      function inicializarChartDiario(canvas) {
+        const labels = JSON.parse(canvas.dataset.labels || '[]');
+        const values = JSON.parse(canvas.dataset.values || '[]');
+        new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Faturamento Diário (R$)', data: values,
+              borderColor: '#C2185B', backgroundColor: 'rgba(194,24,91,.08)',
+              tension: 0.4, fill: true, pointRadius: 4,
+              pointBackgroundColor: '#C2185B', pointBorderColor: '#fff', pointBorderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { font: { size: 11 } } },
+              x: { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 10 } }
+            }
+          }
+        });
+      }
+
+      function inicializarChartMensal(canvas) {
+        const labels = JSON.parse(canvas.dataset.labels || '[]');
+        const values = JSON.parse(canvas.dataset.values || '[]');
+        new Chart(canvas, {
+          type: 'bar',
+          data: {
+            labels: labels.slice(-6),
+            datasets: [{
+              label: 'Faturamento (R$)', data: values.slice(-6),
+              backgroundColor: [
+                'rgba(194,24,91,.85)', 'rgba(194,24,91,.75)', 'rgba(194,24,91,.65)',
+                'rgba(194,24,91,.55)', 'rgba(194,24,91,.45)', 'rgba(194,24,91,.85)'
+              ],
+              borderColor: '#C2185B', borderWidth: 0, borderRadius: 8, borderSkipped: false
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { font: { size: 11 } } },
+              x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            }
+          }
+        });
+      }
+
+      function inicializarChartStatusRel(canvas) {
+        const labels = JSON.parse(canvas.dataset.labels || '[]');
+        const values = JSON.parse(canvas.dataset.values || '[]');
+        new Chart(canvas, {
+          type: 'doughnut',
+          data: {
+            labels,
+            datasets: [{
+              data: values,
+              backgroundColor: ['#FB8C00', '#1E88E5', '#C2185B', '#43A047', '#E53935'],
+              borderWidth: 3, borderColor: '#fff', hoverOffset: 6
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} pedidos` } }
+            },
+            cutout: '65%'
+          }
+        });
+      }
+
+      /* ── Troca de período dos relatórios sem recarregar a página ── */
+      function mudarPeriodo(periodo) {
+        const secao = document.getElementById('secRelatorios');
+        secao.style.opacity = '0.5';
+        secao.style.pointerEvents = 'none';
+
+        fetch(window.location.pathname + '?periodo=' + periodo)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const novaSec = doc.getElementById('secRelatorios');
+            if (!novaSec) return;
+
+            // Destrói os charts existentes ANTES de trocar o innerHTML
+            ['chartFaturamentoDiario', 'chartFaturamento', 'chartStatusRel'].forEach(id => {
+              const canvas = secao.querySelector('#' + id);
+              if (canvas) {
+                const inst = Chart.getChart(canvas);
+                if (inst) inst.destroy();
+              }
+            });
+
+            // Substitui o conteúdo
+            secao.innerHTML = novaSec.innerHTML;
+
+            // Reinicializa os charts com os dados do data-* dos novos canvas
+            const ctxDiario = secao.querySelector('#chartFaturamentoDiario');
+            if (ctxDiario) inicializarChartDiario(ctxDiario);
+
+            const ctxMensal = secao.querySelector('#chartFaturamento');
+            if (ctxMensal) inicializarChartMensal(ctxMensal);
+
+            const ctxStatusRel = secao.querySelector('#chartStatusRel');
+            if (ctxStatusRel) inicializarChartStatusRel(ctxStatusRel);
+
+            // Atualiza estado ativo no seletor de período
+            document.querySelectorAll('#seletorPeriodo button').forEach(btn => {
+              const ativo = btn.dataset.periodo === periodo;
+              btn.style.background = ativo ? 'var(--rose)' : 'transparent';
+              btn.style.color      = ativo ? '#fff'        : 'var(--muted)';
+            });
+          })
+          .catch(() => {
+            window.location.search = '?periodo=' + periodo;
+          })
+          .finally(() => {
+            secao.style.opacity = '1';
+            secao.style.pointerEvents = '';
+          });
+      }
     </script>
 </body>
 
