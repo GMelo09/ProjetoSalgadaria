@@ -8,6 +8,13 @@ class Usuario
     public $email;
     public $senha;
     public $telefone;
+    public $cep;
+    public $logradouro;
+    public $numero;
+    public $complemento;
+    public $bairro;
+    public $cidade;
+    public $uf;
     public $id_tipo;
 
     public function Cadastrar(): int|false
@@ -41,6 +48,29 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$hash, $id_usuario]);
         $linhas  = $comando->rowCount();
+        Banco::desconectar();
+        return $linhas;
+    }
+
+    public function SalvarDadosEntrega(int $id_usuario): int
+    {
+        $sql = "UPDATE usuarios
+                SET telefone = ?, cep = ?, logradouro = ?, numero = ?, complemento = ?, bairro = ?, cidade = ?, uf = ?
+                WHERE id = ?";
+        $banco   = Banco::conectar();
+        $comando = $banco->prepare($sql);
+        $comando->execute([
+            $this->telefone,
+            $this->cep,
+            $this->logradouro,
+            $this->numero,
+            $this->complemento,
+            $this->bairro,
+            $this->cidade,
+            $this->uf,
+            $id_usuario,
+        ]);
+        $linhas = $comando->rowCount();
         Banco::desconectar();
         return $linhas;
     }

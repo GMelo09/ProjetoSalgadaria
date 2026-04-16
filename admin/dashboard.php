@@ -549,8 +549,8 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
                         alt="<?= htmlspecialchars($prod['nome']) ?>"
                         style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--cream);">
                     <?php else: ?>
-                      <span style="font-size:1.4rem;display:inline-block;width:42px;height:42px;line-height:42px;text-align:center;">
-                        <?= htmlspecialchars($prod['emoji'] ?? '📦') ?>
+                      <span style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;background:var(--cream);border-radius:8px;border:1px solid var(--cream);">
+                        <i class="bi bi-box-seam" style="font-size:1.2rem;color:var(--muted);"></i>
                       </span>
                     <?php endif; ?>
                   </td>
@@ -1900,15 +1900,9 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
                 </div>
               </div>
 
-              <div class="form-row">
-                <div class="form-group" style="flex:2;">
-                  <label class="form-label">Nome <span class="required">*</span></label>
-                  <input type="text" class="form-control" name="nome" id="produtoNome" required maxlength="100">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Emoji <span style="font-size:.75rem;color:var(--muted);">(fallback)</span></label>
-                  <input type="text" class="form-control" name="emoji" id="produtoEmoji" maxlength="10" placeholder="🍗">
-                </div>
+              <div class="form-group">
+                <label class="form-label">Nome <span class="required">*</span></label>
+                <input type="text" class="form-control" name="nome" id="produtoNome" required maxlength="100">
               </div>
 
               <div class="form-group">
@@ -1975,14 +1969,33 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           sidebar.classList.toggle('mobile-open');
           overlay.classList.toggle('active');
         } else {
-          sidebar.classList.toggle('collapsed');
-          mainEl.classList.toggle('expanded');
+          // Usa o retorno do toggle para garantir que ambas as classes ficam sincronizadas
+          const collapsed = sidebar.classList.toggle('collapsed');
+          mainEl.classList.toggle('expanded', collapsed);
         }
       });
 
       overlay.addEventListener('click', () => {
         sidebar.classList.remove('mobile-open');
         overlay.classList.remove('active');
+      });
+
+      /* ── Redimensiona os charts + força reflow após a transição da sidebar ── */
+      sidebar.addEventListener('transitionend', (e) => {
+        if (e.target !== sidebar) return;
+        // Dispara resize global para o browser recalcular layouts dependentes
+        window.dispatchEvent(new Event('resize'));
+        if (typeof Chart !== 'undefined') {
+          Object.values(Chart.instances).forEach(chart => chart.resize());
+        }
+      });
+
+      /* ── Impede que os links da sidebar sigam o href="#secX" ──────────────
+         Sem isso, o browser scrolla até o elemento âncora ao trocar de seção,
+         quebrando o posicionamento do layout (sidebar fica sobreposta).
+         O onclick="showSection(...)" dispara normalmente — só o href é cancelado. */
+      document.querySelectorAll('.sidebar-link[href^="#"]').forEach(link => {
+        link.addEventListener('click', e => e.preventDefault());
       });
 
       /* ── Logout com confirmação ── */
@@ -2090,7 +2103,6 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           prod ? '✏️ Editar Produto' : '➕ Novo Produto';
         document.getElementById('produtoId').value = prod?.id ?? '';
         document.getElementById('produtoNome').value = prod?.nome ?? '';
-        document.getElementById('produtoEmoji').value = prod?.emoji ?? '';
         document.getElementById('produtoDescricao').value = prod?.descricao ?? '';
         document.getElementById('produtoCat').value = prod?.categoria_id ?? '1';
         document.getElementById('produtoPreco').value = prod?.preco ?? '';

@@ -4,12 +4,6 @@
 config/config.php
 
 # ============================
-# UPLOADS DE USUÁRIOS
-# ============================
-uploads/
-uploads/produtos/
-
-# ============================
 # DEPENDÊNCIAS E PACOTES
 # ============================
 vendor/

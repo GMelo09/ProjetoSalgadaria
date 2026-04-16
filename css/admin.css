@@ -588,15 +588,22 @@ body {
    MAIN CONTENT
 ═══════════════════════════════════════════ */
 .admin-main {
+  width: calc(100% - var(--sidebar-w));
   margin-left: var(--sidebar-w);
-  flex: 1;
+  flex: 0 0 calc(100% - var(--sidebar-w));
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  transition: margin-left var(--transition);
+  min-width: 0;
+  transition:
+    margin-left var(--transition),
+    width var(--transition),
+    flex-basis var(--transition);
 }
 .admin-main.expanded {
+  width: calc(100% - 64px);
   margin-left: 64px;
+  flex-basis: calc(100% - 64px);
 }
 
 /* ── Topbar ── */
@@ -1236,6 +1243,8 @@ body {
     transform: translateX(0);
   }
   .admin-main {
+    width: 100% !important;
+    flex-basis: 100% !important;
     margin-left: 0 !important;
   }
   .admin-section {

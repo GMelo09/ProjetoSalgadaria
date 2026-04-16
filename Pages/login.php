@@ -16,6 +16,7 @@ $erros = [
   'senha_curta'       => 'A senha deve ter no mínimo 6 caracteres.',
   'senhas_diferentes' => 'As senhas não coincidem.',
   'credenciais'       => 'E-mail ou senha incorretos.',
+  'login_obrigatorio' => 'Faça login ou crie sua conta para continuar com o pedido.',
   'servidor'          => 'Erro interno. Tente novamente.',
   'bloqueado'         => 'Muitas tentativas. Aguarde alguns minutos.',
 ];

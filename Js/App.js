@@ -108,6 +108,47 @@ function fmtBRL(valor) {
   return 'R$ ' + Number(valor).toFixed(2).replace('.', ',');
 }
 
+/* Resolve o estado de autenticação a partir da navbar e monta as rotas
+   de login/cadastro para uso nos bloqueios do carrinho */
+function getAuthState() {
+  const bodyState = document.body?.dataset?.authLoggedIn;
+  const loginLink = document.querySelector('.nav-links a[href*="login.php"]');
+  const loginUrlRaw = document.body?.dataset?.authLoginUrl || loginLink?.getAttribute('href') || 'pages/login.php';
+  const loginUrl = new URL(loginUrlRaw, window.location.href);
+  const cadastroUrl = new URL(document.body?.dataset?.authCadastroUrl || loginUrl.toString(), window.location.href);
+  cadastroUrl.searchParams.set('tab', 'cadastro');
+
+  const isLoggedIn = bodyState === '1' ? true : bodyState === '0' ? false : !loginLink;
+
+  return {
+    isLoggedIn,
+    loginUrl: loginUrl.toString(),
+    cadastroUrl: cadastroUrl.toString(),
+  };
+}
+
+/* Exibe o alerta de bloqueio para visitantes sem conta e leva direto
+   para a aba de cadastro quando confirmado */
+function ensureAuthenticatedForCart() {
+  const auth = getAuthState();
+  if (auth.isLoggedIn) return true;
+
+  Swal.fire({
+    icon: 'warning',
+    title: 'Faça login para adicionar ao carrinho',
+    text: 'Para continuar, entre na sua conta ou crie um cadastro gratuito.',
+    confirmButtonText: 'Criar conta agora',
+    cancelButtonText: 'Agora não',
+    showCancelButton: true,
+    confirmButtonColor: '#c2185b',
+    cancelButtonColor: '#8d6e63',
+  }).then(({ isConfirmed }) => {
+    if (isConfirmed) window.location.href = auth.cadastroUrl;
+  });
+
+  return false;
+}
+
 /* Incrementa ou decrementa um <input> de quantidade; impede valor abaixo de 1
    Usado em: salgados.php → botões −/+ de cada card de produto
              doces.php    → botões −/+ de cada card de produto */
@@ -122,6 +163,8 @@ function changeQty(id, delta) {
    Usado em: salgados.php → botão "Adicionar" de cada card
              doces.php    → botão "Adicionar" de cada card */
 function addToCart(id, nome, preco, inputId) {
+  if (!ensureAuthenticatedForCart()) return;
+
   const input = document.getElementById(inputId);
   const quantidade = input ? parseInt(input.value) || 1 : 1;
 
@@ -359,6 +402,8 @@ const PackageModal = {
   /* Monta o item de pacote e adiciona ao Cart; fecha o modal e exibe toast
      Chamado em: pacotes.php → botão "Adicionar ao Carrinho" (#btnAddPackage) */
   addToCart() {
+    if (!ensureAuthenticatedForCart()) return;
+
     const rows     = document.querySelectorAll('.flavor-row');
     const selected = [];
     rows.forEach(row => {
@@ -455,6 +500,13 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
       option.classList.add('selected');
       option.querySelector('input[type="radio"]')?.click();
+    });
+  });
+
+  /* Botões/links que levam ao checkout também exigem autenticação */
+  document.querySelectorAll('a[href$="checkout.php"]').forEach(link => {
+    link.addEventListener('click', event => {
+      if (!ensureAuthenticatedForCart()) event.preventDefault();
     });
   });
 

@@ -38,6 +38,10 @@ $statusBadge = [
     'cancelado'  => 'badge-danger',   
 ];
 $iconesPag = ['pix' => 'bi-qr-code', 'dinheiro' => 'bi-cash', 'cartao' => 'bi-credit-card'];
+$subtotalItens = 0.0;
+foreach ($itens as $item) {
+    $subtotalItens += (float) $item['preco_unitario'] * (int) $item['quantidade'];
+}
 ?>
 <div style="display:flex;flex-direction:column;gap:1.25rem;">
 
@@ -63,6 +67,12 @@ $iconesPag = ['pix' => 'bi-qr-code', 'dinheiro' => 'bi-cash', 'cartao' => 'bi-cr
       <div><strong>Nome:</strong> <?= htmlspecialchars($pedido['nome_cliente']) ?></div>
       <div><strong>Telefone:</strong> <?= htmlspecialchars($pedido['telefone']) ?></div>
       <div style="grid-column:1/-1;"><strong>Endereço:</strong> <?= htmlspecialchars($pedido['endereco']) ?></div>
+      <?php if (!empty($pedido['cep_entrega'])): ?>
+        <div><strong>CEP:</strong> <?= htmlspecialchars($pedido['cep_entrega']) ?></div>
+      <?php endif; ?>
+      <?php if (!empty($pedido['area_entrega'])): ?>
+        <div><strong>Área:</strong> <?= htmlspecialchars($pedido['area_entrega']) ?></div>
+      <?php endif; ?>
       <?php if (!empty($pedido['observacao'])): ?>
         <div style="grid-column:1/-1;"><strong>Obs:</strong> <?= htmlspecialchars($pedido['observacao']) ?></div>
       <?php endif; ?>
@@ -75,7 +85,15 @@ $iconesPag = ['pix' => 'bi-qr-code', 'dinheiro' => 'bi-cash', 'cartao' => 'bi-cr
       <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.4rem;">
         <i class="bi bi-calendar2-event"></i> Entrega
       </div>
-      <strong><?= date('d/m/Y', strtotime($pedido['data_entrega'])) ?></strong>
+      <strong>
+        <?= date('d/m/Y', strtotime($pedido['data_entrega'])) ?>
+        <?php if (!empty($pedido['horario_entrega'])): ?>
+          às <?= date('H:i', strtotime($pedido['horario_entrega'])) ?>
+        <?php endif; ?>
+      </strong>
+      <?php if (!empty($pedido['area_entrega'])): ?>
+        <div style="margin-top:.35rem;color:var(--muted);"><?= htmlspecialchars($pedido['area_entrega']) ?></div>
+      <?php endif; ?>
     </div>
     <div style="background:var(--cream);border-radius:var(--radius);padding:1rem 1.25rem;font-size:.88rem;">
       <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.4rem;">
@@ -85,6 +103,9 @@ $iconesPag = ['pix' => 'bi-qr-code', 'dinheiro' => 'bi-cash', 'cartao' => 'bi-cr
         <i class="bi <?= $iconesPag[$pedido['forma_pagamento']] ?? 'bi-credit-card' ?>"></i>
         <?= ucfirst(htmlspecialchars($pedido['forma_pagamento'])) ?>
       </strong>
+      <div style="margin-top:.35rem;color:var(--muted);">
+        Taxa de entrega: R$ <?= number_format((float) ($pedido['taxa_entrega'] ?? 0), 2, ',', '.') ?>
+      </div>
     </div>
   </div>
 
@@ -118,6 +139,16 @@ $iconesPag = ['pix' => 'bi-qr-code', 'dinheiro' => 'bi-cash', 'cartao' => 'bi-cr
           <?php endforeach; ?>
         </tbody>
         <tfoot>
+          <?php if ((float) ($pedido['taxa_entrega'] ?? 0) > 0): ?>
+            <tr>
+              <td colspan="3" style="text-align:right;padding:.55rem .5rem;color:var(--muted);">Subtotal itens:</td>
+              <td style="text-align:right;padding:.55rem .5rem;">R$ <?= number_format($subtotalItens, 2, ',', '.') ?></td>
+            </tr>
+            <tr>
+              <td colspan="3" style="text-align:right;padding:.55rem .5rem;color:var(--muted);">Taxa de entrega:</td>
+              <td style="text-align:right;padding:.55rem .5rem;">R$ <?= number_format((float) ($pedido['taxa_entrega'] ?? 0), 2, ',', '.') ?></td>
+            </tr>
+          <?php endif; ?>
           <tr>
             <td colspan="3" style="text-align:right;padding:.75rem .5rem;font-weight:700;font-size:1rem;">Total:</td>
             <td style="text-align:right;padding:.75rem .5rem;font-weight:700;font-size:1rem;color:var(--rose);">

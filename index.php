@@ -55,12 +55,16 @@ $totalPacotes  = count($pacoteObj->ListarAtivos());
                 <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="./Pages/meus_pedidos.php"><i class="bi bi-bag-heart"></i> Meus Pedidos</a></li>
                 <?php if (!empty($_SESSION['eh_admin'])): ?>
-                  <li><a class="dropdown-item" href="./admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
                   <li>
                     <hr class="dropdown-divider">
                   </li>
+                  <li><a class="dropdown-item" href="./admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
                 <?php endif; ?>
+                <li>
+                  <hr class="dropdown-divider">
+                </li>
                 <li>
                   <form action="actions/logout.php" method="POST" style="margin:0;">
                     <?= csrfField() ?>

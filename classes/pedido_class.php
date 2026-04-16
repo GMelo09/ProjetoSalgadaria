@@ -7,17 +7,33 @@ class Pedido
     public $nome_cliente;
     public $telefone;
     public $endereco;
+    public $cep_entrega;
+    public $area_entrega;
     public $data_entrega;
+    public $horario_entrega;
     public $observacao;
     public $forma_pagamento;
     public $status;
+    public $taxa_entrega;
     public $total;
     public $itens; // array de ['produto_id', 'nome_produto', 'quantidade', 'preco_unitario']
 
     public function Criar()
     {
-        $sql = "INSERT INTO pedidos (usuario_id, nome_cliente, telefone, endereco, data_entrega, observacao, forma_pagamento, total)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO pedidos (
+                    usuario_id,
+                    nome_cliente,
+                    telefone,
+                    endereco,
+                    cep_entrega,
+                    area_entrega,
+                    data_entrega,
+                    horario_entrega,
+                    observacao,
+                    forma_pagamento,
+                    taxa_entrega,
+                    total
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $banco = Banco::conectar();
         $banco->beginTransaction();
 
@@ -28,9 +44,13 @@ class Pedido
                 $this->nome_cliente,
                 $this->telefone,
                 $this->endereco,
+                $this->cep_entrega,
+                $this->area_entrega,
                 $this->data_entrega,
+                $this->horario_entrega,
                 $this->observacao,
                 $this->forma_pagamento,
+                $this->taxa_entrega ?? 0,
                 $this->total,
             ]);
 
@@ -65,7 +85,8 @@ class Pedido
     public function Editar($id_pedido)
     {
         $sql = "UPDATE pedidos SET usuario_id = ?, nome_cliente = ?, telefone = ?, endereco = ?,
-                data_entrega = ?, observacao = ?, forma_pagamento = ?, status = ?, total = ?
+                cep_entrega = ?, area_entrega = ?, data_entrega = ?, horario_entrega = ?,
+                observacao = ?, forma_pagamento = ?, status = ?, taxa_entrega = ?, total = ?
                 WHERE id = ?";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
@@ -74,10 +95,14 @@ class Pedido
             $this->nome_cliente,
             $this->telefone,
             $this->endereco,
+            $this->cep_entrega,
+            $this->area_entrega,
             $this->data_entrega,
+            $this->horario_entrega,
             $this->observacao,
             $this->forma_pagamento,
             $this->status,
+            $this->taxa_entrega ?? 0,
             $this->total,
             $id_pedido,
         ]);

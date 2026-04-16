@@ -44,10 +44,12 @@ if (!$pedido_id) {
               <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="meus_pedidos.php"><i class="bi bi-bag-heart"></i> Meus Pedidos</a></li>
               <?php if (!empty($_SESSION['eh_admin'])): ?>
-                <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
                 <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
               <?php endif; ?>
+              <li><hr class="dropdown-divider"></li>
               <li>
                 <form action="../actions/logout.php" method="POST" style="margin:0;">
                   <?= csrfField() ?>
@@ -80,6 +82,9 @@ if (!$pedido_id) {
       Em breve entraremos em contato pelo WhatsApp para confirmar os detalhes da entrega.
     </p>
     <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+      <a href="meus_pedidos.php?pedido=<?= $pedido_id ?>#pedido-<?= $pedido_id ?>" class="btn btn-outline btn-lg">
+        <i class="bi bi-bag-heart"></i> Acompanhar Pedido
+      </a>
       <a href="../index.php" class="btn btn-primary btn-lg">
         <i class="bi bi-house"></i> Voltar ao Início
       </a>

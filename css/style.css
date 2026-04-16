@@ -136,7 +136,11 @@ h5 {
   margin-left: auto;
   list-style: none;
 }
-.nav-links a {
+.nav-links > li {
+  display: flex;
+  align-items: center;
+}
+.nav-links > li > a {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -148,8 +152,8 @@ h5 {
   transition: all var(--transition);
   white-space: nowrap;
 }
-.nav-links a:hover,
-.nav-links a.active {
+.nav-links > li > a:hover,
+.nav-links > li > a.active {
   background: var(--rose-pale);
   color: var(--rose);
 }
@@ -219,8 +223,12 @@ h5 {
   .nav-links.open {
     display: flex;
   }
-  .nav-links a {
+  .nav-links > li {
+    width: 100%;
+  }
+  .nav-links > li > a {
     border-radius: var(--radius-sm);
+    width: 100%;
   }
   .navbar-main .container {
     position: relative;
@@ -1908,6 +1916,106 @@ h5 {
   border-left-color: var(--success);
 }
 
+.delivery-area-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #fffaf7, #fff);
+  border: 1px solid var(--cream-dark);
+}
+.delivery-area-card.error {
+  background: #ffebee;
+  border-color: #ef9a9a;
+}
+.delivery-area-copy {
+  flex: 1;
+}
+.delivery-area-label {
+  display: inline-block;
+  margin-bottom: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.delivery-area-copy strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--ink);
+  font-size: 0.96rem;
+}
+.delivery-area-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.delivery-area-card.error .delivery-area-copy strong,
+.delivery-area-card.error .delivery-area-copy p {
+  color: #b71c1c;
+}
+.delivery-fee-pill {
+  flex-shrink: 0;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  background: var(--rose-dark);
+  color: var(--white);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.delivery-area-card.error .delivery-fee-pill {
+  background: #c62828;
+}
+
+.delivery-guidelines {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+.delivery-guideline {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius);
+  background: var(--cream);
+  border: 1px solid var(--cream-dark);
+}
+.delivery-guideline i {
+  color: var(--rose);
+  font-size: 1.05rem;
+  margin-top: 0.05rem;
+}
+.delivery-guideline strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+.delivery-guideline span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.summary-note {
+  margin-top: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
 /* ── Flex helpers ── */
 .flex-1 {
   flex: 1;
@@ -1997,4 +2105,268 @@ h5 {
 .trust-badge i {
   font-size: 1.1rem;
   color: var(--choco-light);
+}
+
+/* ── Meus pedidos ── */
+.orders-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.orders-overview-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 1.35rem 1.5rem;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(194, 24, 91, 0.08);
+}
+.orders-overview-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.orders-overview-card strong {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  color: var(--ink);
+}
+.orders-overview-card small {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.orders-empty-state {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.orders-empty-icon {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--rose-pale);
+  color: var(--rose);
+  font-size: 2rem;
+}
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.order-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 1.6rem;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(194, 24, 91, 0.08);
+  scroll-margin-top: calc(var(--nav-h) + 1rem);
+}
+.order-card-highlight {
+  border-color: rgba(194, 24, 91, 0.32);
+  box-shadow: var(--shadow-rose);
+}
+.order-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.order-eyebrow {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rose);
+}
+.order-card-head h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.55rem;
+}
+.order-card-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.order-progress {
+  margin-bottom: 1rem;
+}
+.order-progress-track {
+  height: 10px;
+  margin-bottom: 0.45rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--cream-dark);
+}
+.order-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--rose-dark), var(--rose));
+}
+.order-progress-track.cancelled span {
+  background: linear-gradient(90deg, #c62828, #ef5350);
+}
+.order-progress small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.order-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.15rem 0;
+}
+.order-meta-card {
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius);
+  background: var(--cream);
+}
+.order-meta-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.order-meta-card strong {
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.order-address,
+.order-note {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-top: 0.85rem;
+  padding: 1rem 1.05rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--cream-dark);
+  background: #fffaf6;
+}
+.order-address i,
+.order-note i {
+  margin-top: 0.15rem;
+  color: var(--rose);
+  font-size: 1rem;
+}
+.order-address strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 0.84rem;
+}
+.order-address span,
+.order-note span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+.order-items-box {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--cream-dark);
+}
+.order-items-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.order-items-title span {
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.order-items-title small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.order-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--cream);
+  font-size: 0.88rem;
+}
+.order-item-row:last-child {
+  border-bottom: none;
+}
+.order-item-row span {
+  color: var(--muted);
+}
+.order-item-row strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+.order-total-breakdown {
+  margin-top: 0.5rem;
+  padding-top: 0.25rem;
+}
+.order-item-row.is-total {
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 2px solid var(--cream-dark);
+  font-size: 1rem;
+}
+.order-item-row.is-total span,
+.order-item-row.is-total strong {
+  color: var(--rose-dark);
+}
+
+@media (max-width: 900px) {
+  .orders-overview {
+    grid-template-columns: 1fr;
+  }
+  .order-meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .delivery-guidelines {
+    grid-template-columns: 1fr;
+  }
+  .delivery-area-card {
+    flex-direction: column;
+  }
+  .delivery-fee-pill {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .order-card {
+    padding: 1.25rem;
+  }
+  .order-card-head {
+    flex-direction: column;
+  }
+  .order-meta-grid {
+    grid-template-columns: 1fr;
+  }
+  .order-item-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
 }

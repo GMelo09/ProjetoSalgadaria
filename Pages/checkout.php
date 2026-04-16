@@ -1,7 +1,46 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../classes/produto_class.php';
+require_once __DIR__ . '/../includes/delivery.php';
+require_once __DIR__ . '/../classes/usuario_class.php';
 sessionStart();
+
+if (!isLoggedIn()) {
+  header('Location: login.php?erro=login_obrigatorio&tab=cadastro');
+  exit;
+}
+
+$checkoutErrors = [
+  'campos_obrigatorios' => 'Preencha os campos obrigatórios para continuar.',
+  'cep_invalido'        => 'Informe um CEP válido para a entrega.',
+  'cep_fora_area'       => deliveryConfig()['out_of_area_message'],
+  'pagamento_invalido'  => 'Escolha uma forma de pagamento válida.',
+  'prazo_minimo'        => 'A data escolhida não respeita o prazo mínimo de encomenda.',
+  'horario_invalido'    => 'Escolha um horário de entrega dentro da janela disponível.',
+  'servidor'            => 'Não foi possível concluir o pedido agora. Tente novamente.',
+];
+
+$erro = $_GET['erro'] ?? '';
+$msgErro = $checkoutErrors[$erro] ?? '';
+
+$usuarioObj = new Usuario();
+$cliente = $usuarioObj->BuscarPorId((int) ($_SESSION['usuario_id'] ?? 0));
+$cliente = is_array($cliente) ? $cliente : [];
+
+$deliveryConfig = deliveryConfig();
+$minimumDate = deliveryMinimumDate();
+$minimumDateLabel = date('d/m/Y', strtotime($minimumDate));
+$savedCep = deliveryFormatCep($cliente['cep'] ?? '');
+$savedArea = deliveryFindArea($savedCep);
+$savedAddressReady = !empty($cliente['logradouro']) && !empty($cliente['numero']) && !empty($cliente['bairro']) && !empty($cliente['cidade']) && !empty($cliente['uf']);
+$deliveryAreasForJs = array_map(
+  static fn(array $area): array => [
+    'nome' => $area['nome'],
+    'cep_inicio' => $area['cep_inicio'],
+    'cep_fim' => $area['cep_fim'],
+    'taxa' => (float) $area['taxa'],
+  ],
+  $deliveryConfig['areas'] ?? []
+);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -40,10 +79,14 @@ sessionStart();
               <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="meus_pedidos.php"><i class="bi bi-bag-heart"></i> Meus Pedidos</a></li>
               <?php if (!empty($_SESSION['eh_admin'])): ?>
-                <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
                 <li><hr class="dropdown-divider"></li>
               <?php endif; ?>
+              <?php if (!empty($_SESSION['eh_admin'])): ?>
+                <li><a class="dropdown-item" href="../admin/dashboard.php"><i class="bi bi-speedometer2"></i> Painel Admin</a></li>
+              <?php endif; ?>
+              <li><hr class="dropdown-divider"></li>
               <li>
                 <form action="../actions/logout.php" method="POST" style="margin:0;">
                   <?= csrfField() ?>
@@ -94,6 +137,12 @@ sessionStart();
 <!-- ══════════════════ MAIN ══════════════════ -->
 <section class="section">
   <div class="container">
+    <?php if ($msgErro): ?>
+      <div class="alert alert-error" style="margin-bottom:1.5rem;">
+        <i class="bi bi-exclamation-octagon"></i> <?= htmlspecialchars($msgErro) ?>
+      </div>
+    <?php endif; ?>
+
     <div id="checkoutLayout">
 
       <!-- ── Formulário ── -->
@@ -112,9 +161,6 @@ sessionStart();
           <form id="checkoutForm" action="../actions/pedido_cadastrar.php" method="POST">
             <?= csrfField() ?>
             <input type="hidden" id="itensInput" name="itens_carrinho">
-            <?php if (!empty($_SESSION['usuario_id'])): ?>
-              <input type="hidden" name="usuario_id" value="<?= (int) $_SESSION['usuario_id'] ?>">
-            <?php endif; ?>
 
             <div class="form-group">
               <label class="form-label">Nome Completo <span class="required">*</span></label>
@@ -122,7 +168,7 @@ sessionStart();
                 <i class="bi bi-person input-icon"></i>
                 <input type="text" class="form-control input-with-icon" name="nome" required maxlength="100"
                   placeholder="Seu nome completo"
-                  value="<?= htmlspecialchars($_SESSION['usuario_nome'] ?? '') ?>">
+                  value="<?= htmlspecialchars($cliente['nome'] ?? $_SESSION['usuario_nome'] ?? '') ?>">
               </div>
             </div>
 
@@ -132,14 +178,16 @@ sessionStart();
                 <div class="input-icon-wrap">
                   <i class="bi bi-telephone input-icon"></i>
                   <input type="tel" class="form-control input-with-icon" name="telefone" id="telInput" required
-                    maxlength="20" placeholder="(11) 99999-9999">
+                    maxlength="20" placeholder="(11) 99999-9999"
+                    value="<?= htmlspecialchars($cliente['telefone'] ?? '') ?>">
                 </div>
               </div>
               <div class="form-group">
                 <label class="form-label">E-mail <span class="label-optional">opcional</span></label>
                 <div class="input-icon-wrap">
                   <i class="bi bi-envelope input-icon"></i>
-                  <input type="email" class="form-control input-with-icon" name="email" maxlength="150" placeholder="seu@email.com">
+                  <input type="email" class="form-control input-with-icon" name="email" maxlength="150" placeholder="seu@email.com"
+                    value="<?= htmlspecialchars($cliente['email'] ?? '') ?>">
                 </div>
               </div>
             </div>
@@ -165,7 +213,8 @@ sessionStart();
                 <i class="bi bi-search input-icon" id="cepIcon"></i>
                 <input type="text" class="form-control input-with-icon" name="cep" id="cepInput"
                   required maxlength="9" placeholder="00000-000"
-                  autocomplete="postal-code">
+                  autocomplete="postal-code"
+                  value="<?= htmlspecialchars($savedCep) ?>">
                 <div class="cep-spinner" id="cepSpinner" style="display:none;">
                   <div class="spinner-border spinner-border-sm text-rose" role="status"></div>
                 </div>
@@ -180,43 +229,58 @@ sessionStart();
             </div>
           </div>
 
+          <div class="delivery-area-card" id="deliveryAreaCard" style="display:none;">
+            <div class="delivery-area-copy">
+              <span class="delivery-area-label">Entrega por CEP</span>
+              <strong id="deliveryAreaName">Área de entrega</strong>
+              <p id="deliveryAreaHint">Informe um CEP válido para ver área atendida e taxa.</p>
+            </div>
+            <div class="delivery-fee-pill" id="deliveryAreaFee">A calcular</div>
+          </div>
+
           <!-- Campos preenchidos pelo ViaCEP -->
-          <div id="enderecoFields" class="cep-fields-wrap" style="display:none;">
+          <div id="enderecoFields" class="cep-fields-wrap" style="display:<?= $savedAddressReady ? 'block' : 'none' ?>;">
             <div class="cep-success-bar" id="cepSuccessBar">
               <i class="bi bi-check-circle-fill"></i>
-              <span id="cepSuccessMsg">Endereço encontrado!</span>
+              <span id="cepSuccessMsg"><?= $savedAddressReady ? htmlspecialchars(trim(($cliente['cidade'] ?? '') . ' - ' . ($cliente['uf'] ?? ''))) : 'Endereço encontrado!' ?></span>
             </div>
 
             <div class="form-row">
               <div class="form-group flex-3">
                 <label class="form-label">Logradouro <span class="required">*</span></label>
-                <input type="text" class="form-control" name="logradouro" id="logradouro" required maxlength="200" placeholder="Rua / Av. / Alameda">
+                <input type="text" class="form-control" name="logradouro" id="logradouro" required maxlength="200" placeholder="Rua / Av. / Alameda"
+                  value="<?= htmlspecialchars($cliente['logradouro'] ?? '') ?>">
               </div>
               <div class="form-group flex-1">
                 <label class="form-label">Número <span class="required">*</span></label>
-                <input type="text" class="form-control" name="numero" id="numInput" required maxlength="10" placeholder="Nº" autocomplete="off">
+                <input type="text" class="form-control" name="numero" id="numInput" required maxlength="20" placeholder="Nº" autocomplete="off"
+                  value="<?= htmlspecialchars($cliente['numero'] ?? '') ?>">
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Complemento <span class="label-optional">opcional</span></label>
-                <input type="text" class="form-control" name="complemento" id="complemento" maxlength="100" placeholder="Apto, bloco, casa...">
+                <input type="text" class="form-control" name="complemento" id="complemento" maxlength="100" placeholder="Apto, bloco, casa..."
+                  value="<?= htmlspecialchars($cliente['complemento'] ?? '') ?>">
               </div>
               <div class="form-group">
                 <label class="form-label">Bairro <span class="required">*</span></label>
-                <input type="text" class="form-control" name="bairro" id="bairro" required maxlength="100" placeholder="Bairro">
+                <input type="text" class="form-control" name="bairro" id="bairro" required maxlength="100" placeholder="Bairro"
+                  value="<?= htmlspecialchars($cliente['bairro'] ?? '') ?>">
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group flex-2">
                 <label class="form-label">Cidade <span class="required">*</span></label>
-                <input type="text" class="form-control" name="cidade" id="cidade" required maxlength="100" placeholder="Cidade" readonly>
+                <input type="text" class="form-control" name="cidade" id="cidade" required maxlength="100" placeholder="Cidade" readonly
+                  value="<?= htmlspecialchars($cliente['cidade'] ?? '') ?>">
               </div>
               <div class="form-group flex-1">
                 <label class="form-label">UF</label>
-                <input type="text" class="form-control" name="uf" id="uf" maxlength="2" placeholder="SP" readonly>
+                <input type="text" class="form-control" name="uf" id="uf" maxlength="2" placeholder="SP" readonly
+                  value="<?= htmlspecialchars($cliente['uf'] ?? '') ?>">
               </div>
             </div>
 
@@ -233,8 +297,25 @@ sessionStart();
           <div class="form-block-header">
             <span class="form-block-icon"><i class="bi bi-calendar-event-fill"></i></span>
             <div>
-              <h4 class="form-block-title">Data &amp; Observações</h4>
-              <p class="form-block-sub">Quando deseja receber?</p>
+              <h4 class="form-block-title">Data, Horário &amp; Observações</h4>
+              <p class="form-block-sub">Defina quando deseja receber sua encomenda.</p>
+            </div>
+          </div>
+
+          <div class="delivery-guidelines">
+            <div class="delivery-guideline">
+              <i class="bi bi-hourglass-split"></i>
+              <div>
+                <strong>Prazo mínimo</strong>
+                <span>Pedidos com antecedência mínima até <strong><?= htmlspecialchars($minimumDateLabel) ?></strong>.</span>
+              </div>
+            </div>
+            <div class="delivery-guideline">
+              <i class="bi bi-clock-history"></i>
+              <div>
+                <strong>Janela de entrega</strong>
+                <span>Escolha um horário entre <?= htmlspecialchars($deliveryConfig['time_min']) ?> e <?= htmlspecialchars($deliveryConfig['time_max']) ?>.</span>
+              </div>
             </div>
           </div>
 
@@ -244,16 +325,29 @@ sessionStart();
               <div class="input-icon-wrap">
                 <i class="bi bi-calendar3 input-icon"></i>
                 <input type="date" class="form-control input-with-icon" name="data_entrega" required
-                  min="<?= date('Y-m-d', strtotime('+1 day')) ?>">
+                  min="<?= htmlspecialchars($minimumDate) ?>"
+                  value="<?= htmlspecialchars($minimumDate) ?>">
               </div>
             </div>
             <div class="form-group">
-              <label class="form-label">Observações <span class="label-optional">opcional</span></label>
+              <label class="form-label">Horário de Entrega <span class="required">*</span></label>
               <div class="input-icon-wrap">
-                <i class="bi bi-chat-left-text input-icon"></i>
-                <input type="text" class="form-control input-with-icon" name="obs" maxlength="300"
-                  placeholder="Alguma instrução especial?">
+                <i class="bi bi-clock input-icon"></i>
+                <input type="time" class="form-control input-with-icon" name="horario_entrega" required
+                  min="<?= htmlspecialchars($deliveryConfig['time_min']) ?>"
+                  max="<?= htmlspecialchars($deliveryConfig['time_max']) ?>"
+                  step="1800"
+                  value="16:00">
               </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Observações <span class="label-optional">opcional</span></label>
+            <div class="input-icon-wrap">
+              <i class="bi bi-chat-left-text input-icon"></i>
+              <input type="text" class="form-control input-with-icon" name="obs" maxlength="300"
+                placeholder="Alguma instrução especial?">
             </div>
           </div>
         </div><!-- /form-block -->
@@ -328,8 +422,22 @@ sessionStart();
 
         <div class="divider" style="margin:.75rem 0;"></div>
 
+        <div class="summary-row">
+          <span>Subtotal dos itens</span>
+          <span id="checkoutSubtotal">R$ 0,00</span>
+        </div>
+
+        <div class="summary-row">
+          <span>Taxa de entrega</span>
+          <span id="checkoutDeliveryFee">Calcule pelo CEP</span>
+        </div>
+
+        <div class="summary-note" id="checkoutDeliveryMeta">
+          A taxa e a área de entrega são definidas conforme o CEP informado.
+        </div>
+
         <div class="summary-row total" style="margin-top:.5rem;">
-          <span>Total</span>
+          <span>Total previsto</span>
           <span class="amount" id="checkoutTotal">R$ 0,00</span>
         </div>
 
@@ -403,132 +511,291 @@ sessionStart();
    CHECKOUT SCRIPT
 ═══════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-
-  /* — Redireciona se carrinho vazio — */
   const items = Cart.get();
-  if (items.length === 0) { window.location.href = 'carrinho.php'; return; }
+  if (items.length === 0) {
+    window.location.href = 'carrinho.php';
+    return;
+  }
 
-  /* — Renderiza itens no resumo — */
-  let html = '';
-  items.forEach(item => {
-    html += `<div class="summary-row">
-      <span style="font-size:.85rem;">${item.nome}
-        <small style="color:var(--muted);">×${item.quantidade}</small>
-      </span>
-      <span style="font-size:.85rem;font-weight:600;">${fmtBRL(item.preco * item.quantidade)}</span>
-    </div>`;
-  });
-  document.getElementById('checkoutItems').innerHTML = html;
-  document.getElementById('checkoutTotal').textContent = fmtBRL(Cart.total());
+  const checkoutForm = document.getElementById('checkoutForm');
+  const subtotalEl = document.getElementById('checkoutSubtotal');
+  const feeEl = document.getElementById('checkoutDeliveryFee');
+  const totalEl = document.getElementById('checkoutTotal');
+  const metaEl = document.getElementById('checkoutDeliveryMeta');
+  const submitBtn = document.getElementById('submitBtn');
+  const cepInput = document.getElementById('cepInput');
+  const cepSpinner = document.getElementById('cepSpinner');
+  const cepIcon = document.getElementById('cepIcon');
+  const cepFeedback = document.getElementById('cepFeedback');
+  const enderecoFields = document.getElementById('enderecoFields');
+  const cepSuccessBar = document.getElementById('cepSuccessBar');
+  const cepSuccessMsg = document.getElementById('cepSuccessMsg');
+  const deliveryAreaCard = document.getElementById('deliveryAreaCard');
+  const deliveryAreaName = document.getElementById('deliveryAreaName');
+  const deliveryAreaHint = document.getElementById('deliveryAreaHint');
+  const deliveryAreaFee = document.getElementById('deliveryAreaFee');
+  const savedAddressReady = <?= $savedAddressReady ? 'true' : 'false' ?>;
+  const savedCepValue = <?= json_encode($savedCep) ?>;
+  const savedCity = <?= json_encode((string) ($cliente['cidade'] ?? '')) ?>;
+  const savedUf = <?= json_encode((string) ($cliente['uf'] ?? '')) ?>;
+  const deliveryConfig = {
+    areas: <?= json_encode($deliveryAreasForJs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    outOfAreaMessage: <?= json_encode($deliveryConfig['out_of_area_message'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+    timeMin: <?= json_encode($deliveryConfig['time_min']) ?>,
+    timeMax: <?= json_encode($deliveryConfig['time_max']) ?>,
+    minimumDateLabel: <?= json_encode($minimumDateLabel) ?>,
+  };
 
-  /* — Serializa itens antes de enviar o form — */
-  document.getElementById('checkoutForm').addEventListener('submit', function (e) {
-    // Monta endereço completo para o campo oculto (retrocompatibilidade)
-    const campos = ['logradouro','numInput','complemento','bairro','cidade','uf'];
-    const [logr, num, comp, bairro, cidade, uf] = campos.map(id => document.getElementById(id)?.value.trim() ?? '');
-    const endFull = [logr, num, comp, bairro, cidade + (uf ? '/' + uf : '')].filter(Boolean).join(', ');
+  let currentDeliveryArea = null;
+  let deliveryState = 'pending';
+
+  renderOrderSummary();
+  updateOrderTotals();
+
+  checkoutForm.addEventListener('submit', event => {
+    const rawCep = normalizeCep(cepInput.value);
+    if (deliveryState === 'invalid' || rawCep.length !== 8 || !findDeliveryArea(rawCep)) {
+      event.preventDefault();
+      Swal.fire({
+        icon: 'warning',
+        title: 'Revise o CEP da entrega',
+        text: deliveryConfig.outOfAreaMessage,
+        confirmButtonColor: '#c2185b',
+      });
+      return;
+    }
+
+    const logr = document.getElementById('logradouro').value.trim();
+    const numero = document.getElementById('numInput').value.trim();
+    const comp = document.getElementById('complemento').value.trim();
+    const bairro = document.getElementById('bairro').value.trim();
+    const cidade = document.getElementById('cidade').value.trim();
+    const uf = document.getElementById('uf').value.trim();
+    const primeiraLinha = [logr, numero].filter(Boolean).join(', ');
+    const enderecoPrincipal = comp ? `${primeiraLinha} - ${comp}` : primeiraLinha;
+    const endFull = [enderecoPrincipal, bairro, cidade + (uf ? '/' + uf : '')].filter(Boolean).join(', ');
+
     document.getElementById('enderecoFull').value = endFull;
     document.getElementById('itensInput').value = JSON.stringify(items);
   });
 
-  /* ── Máscara de telefone ── */
   document.getElementById('telInput').addEventListener('input', function () {
     let v = this.value.replace(/\D/g, '').slice(0, 11);
-    if (v.length > 6)      v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
-    else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+    if (v.length > 6) v = `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`;
+    else if (v.length > 2) v = `(${v.slice(0, 2)}) ${v.slice(2)}`;
     else if (v.length > 0) v = `(${v}`;
     this.value = v;
   });
 
-  /* ── Pagamento: PIX info / Troco ── */
-  document.querySelectorAll('input[name="forma_pagamento"]').forEach(r => {
-    r.addEventListener('change', () => {
+  document.querySelectorAll('input[name="forma_pagamento"]').forEach(radio => {
+    radio.addEventListener('change', () => {
       const val = document.querySelector('input[name="forma_pagamento"]:checked')?.value;
-      document.getElementById('pixInfo').style.display    = val === 'pix'      ? 'flex' : 'none';
-      document.getElementById('trocoInfo').style.display  = val === 'dinheiro' ? 'block' : 'none';
+      document.getElementById('pixInfo').style.display = val === 'pix' ? 'flex' : 'none';
+      document.getElementById('trocoInfo').style.display = val === 'dinheiro' ? 'block' : 'none';
     });
   });
 
-  /* ══════════════════════════════════════════
-     ViaCEP — Busca automática de endereço
-  ══════════════════════════════════════════ */
-  const cepInput      = document.getElementById('cepInput');
-  const cepSpinner    = document.getElementById('cepSpinner');
-  const cepIcon       = document.getElementById('cepIcon');
-  const cepFeedback   = document.getElementById('cepFeedback');
-  const enderecoFields = document.getElementById('enderecoFields');
-  const cepSuccessBar = document.getElementById('cepSuccessBar');
-  const cepSuccessMsg = document.getElementById('cepSuccessMsg');
-
-  /* Máscara de CEP */
   cepInput.addEventListener('input', function () {
-    let v = this.value.replace(/\D/g, '').slice(0, 8);
+    let v = normalizeCep(this.value).slice(0, 8);
     if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
     this.value = v;
 
-    // Limpa feedback
     cepFeedback.textContent = '';
     cepFeedback.className = 'cep-feedback';
 
-    // Busca quando tiver 8 dígitos
-    if (v.replace(/\D/g, '').length === 8) buscarCEP(v);
+    if (normalizeCep(v).length < 8) {
+      cepInput.classList.remove('is-valid', 'is-invalid');
+      resetDeliveryAreaState();
+      return;
+    }
+
+    buscarCEP(v);
   });
 
-  async function buscarCEP(cep) {
-    const rawCEP = cep.replace(/\D/g, '');
+  hydrateSavedAddress();
 
-    // UI: loading
-    cepIcon.style.display    = 'none';
+  function renderOrderSummary() {
+    let html = '';
+    items.forEach(item => {
+      html += `<div class="summary-row">
+        <span style="font-size:.85rem;">${item.nome}
+          <small style="color:var(--muted);">×${item.quantidade}</small>
+        </span>
+        <span style="font-size:.85rem;font-weight:600;">${fmtBRL(item.preco * item.quantidade)}</span>
+      </div>`;
+    });
+
+    document.getElementById('checkoutItems').innerHTML = html;
+  }
+
+  function updateOrderTotals() {
+    const subtotal = Cart.total();
+    subtotalEl.textContent = fmtBRL(subtotal);
+
+    if (deliveryState === 'valid' && currentDeliveryArea) {
+      feeEl.textContent = fmtBRL(currentDeliveryArea.taxa);
+      totalEl.textContent = fmtBRL(subtotal + currentDeliveryArea.taxa);
+      metaEl.textContent = `${currentDeliveryArea.nome} • Taxa calculada conforme o CEP informado.`;
+      return;
+    }
+
+    totalEl.textContent = fmtBRL(subtotal);
+
+    if (deliveryState === 'invalid') {
+      feeEl.textContent = 'Indisponível';
+      metaEl.textContent = deliveryConfig.outOfAreaMessage;
+      return;
+    }
+
+    feeEl.textContent = 'Calcule pelo CEP';
+    metaEl.textContent = 'A taxa e a área de entrega são definidas conforme o CEP informado.';
+  }
+
+  function setCheckoutBlocked(blocked, reason = '') {
+    submitBtn.disabled = blocked;
+    submitBtn.style.opacity = blocked ? '0.68' : '1';
+    submitBtn.style.cursor = blocked ? 'not-allowed' : '';
+    submitBtn.title = blocked ? reason : '';
+  }
+
+  function normalizeCep(cep) {
+    return (cep || '').replace(/\D/g, '');
+  }
+
+  function formatCep(rawCep) {
+    return rawCep.length === 8 ? `${rawCep.slice(0, 5)}-${rawCep.slice(5)}` : rawCep;
+  }
+
+  function findDeliveryArea(rawCep) {
+    return deliveryConfig.areas.find(area => rawCep >= area.cep_inicio && rawCep <= area.cep_fim) || null;
+  }
+
+  function markCepFound(city, uf) {
+    enderecoFields.style.display = 'block';
+    cepSuccessMsg.textContent = `${city} — ${uf}`;
+    cepSuccessBar.className = 'cep-success-bar success';
+    cepInput.classList.remove('is-invalid');
+    cepInput.classList.add('is-valid');
+  }
+
+  function setDeliveryArea(area, rawCep) {
+    deliveryState = 'valid';
+    currentDeliveryArea = area;
+    deliveryAreaCard.style.display = 'flex';
+    deliveryAreaCard.classList.remove('error');
+    deliveryAreaName.textContent = area.nome;
+    deliveryAreaHint.textContent = `Taxa para o CEP ${formatCep(rawCep)}. Entregas a partir de ${deliveryConfig.minimumDateLabel}, entre ${deliveryConfig.timeMin} e ${deliveryConfig.timeMax}.`;
+    deliveryAreaFee.textContent = fmtBRL(area.taxa);
+    setCheckoutBlocked(false);
+    updateOrderTotals();
+  }
+
+  function setDeliveryUnavailable(message) {
+    deliveryState = 'invalid';
+    currentDeliveryArea = null;
+    deliveryAreaCard.style.display = 'flex';
+    deliveryAreaCard.classList.add('error');
+    deliveryAreaName.textContent = 'CEP fora da área de entrega';
+    deliveryAreaHint.textContent = message;
+    deliveryAreaFee.textContent = 'Indisponível';
+    setCheckoutBlocked(true, message);
+    updateOrderTotals();
+  }
+
+  function resetDeliveryAreaState() {
+    deliveryState = 'pending';
+    currentDeliveryArea = null;
+    deliveryAreaCard.style.display = 'none';
+    deliveryAreaCard.classList.remove('error');
+    setCheckoutBlocked(false);
+    updateOrderTotals();
+  }
+
+  async function buscarCEP(cep) {
+    const rawCEP = normalizeCep(cep);
+
+    cepIcon.style.display = 'none';
     cepSpinner.style.display = 'flex';
-    enderecoFields.style.display = 'none';
     cepInput.classList.remove('is-valid', 'is-invalid');
+    resetDeliveryAreaState();
 
     try {
-      const res  = await fetch(`https://viacep.com.br/ws/${rawCEP}/json/`);
+      const res = await fetch(`https://viacep.com.br/ws/${rawCEP}/json/`);
       const data = await res.json();
 
-      // CEP não encontrado
       if (data.erro) {
         setCepError('CEP não encontrado. Verifique e tente novamente.');
         return;
       }
 
-      // Preenche campos
-      document.getElementById('logradouro').value  = data.logradouro  || '';
-      document.getElementById('bairro').value       = data.bairro      || '';
-      document.getElementById('cidade').value       = data.localidade  || '';
-      document.getElementById('uf').value           = data.uf          || '';
-      document.getElementById('complemento').value  = '';
+      document.getElementById('logradouro').value = data.logradouro || '';
+      document.getElementById('bairro').value = data.bairro || '';
+      document.getElementById('cidade').value = data.localidade || '';
+      document.getElementById('uf').value = data.uf || '';
+      if (rawCEP !== normalizeCep(savedCepValue)) {
+        document.getElementById('numInput').value = '';
+        document.getElementById('complemento').value = '';
+      }
 
-      // Exibe campos e mensagem de sucesso
-      enderecoFields.style.display = 'block';
-      cepSuccessMsg.textContent = `${data.localidade} — ${data.uf}`;
-      cepSuccessBar.className = 'cep-success-bar success';
+      markCepFound(data.localidade || 'Endereço encontrado', data.uf || '');
 
-      // Foca no número
-      setTimeout(() => document.getElementById('numInput').focus(), 80);
+      const area = findDeliveryArea(rawCEP);
+      if (area) {
+        setDeliveryArea(area, rawCEP);
+        setCepFeedback('✓ Endereço encontrado e entrega disponível.', 'success');
+      } else {
+        cepInput.classList.remove('is-valid');
+        cepInput.classList.add('is-invalid');
+        setDeliveryUnavailable(deliveryConfig.outOfAreaMessage);
+        setCepFeedback('CEP localizado, mas fora da área de entrega.', 'error');
+      }
 
-      // UI: sucesso
-      cepInput.classList.add('is-valid');
-      setCepFeedback('✓ Endereço encontrado', 'success');
-
+      if (!document.getElementById('numInput').value.trim()) {
+        setTimeout(() => document.getElementById('numInput').focus(), 80);
+      }
     } catch {
       setCepError('Erro ao buscar CEP. Verifique sua conexão.');
     } finally {
-      cepIcon.style.display    = 'block';
+      cepIcon.style.display = 'block';
       cepSpinner.style.display = 'none';
     }
   }
 
   function setCepError(msg) {
     cepInput.classList.add('is-invalid');
-    enderecoFields.style.display = 'none';
+    if (!savedAddressReady || normalizeCep(cepInput.value) !== normalizeCep(savedCepValue)) {
+      enderecoFields.style.display = 'none';
+    }
+    resetDeliveryAreaState();
     setCepFeedback(msg, 'error');
   }
 
   function setCepFeedback(msg, type) {
-    cepFeedback.textContent  = msg;
-    cepFeedback.className    = `cep-feedback ${type}`;
+    cepFeedback.textContent = msg;
+    cepFeedback.className = `cep-feedback ${type}`;
+  }
+
+  function hydrateSavedAddress() {
+    const savedCep = normalizeCep(cepInput.value);
+    if (savedCep.length !== 8) return;
+
+    if (savedAddressReady) {
+      markCepFound(savedCity || 'Endereço salvo', savedUf || '');
+      setCepFeedback('✓ Endereço salvo pronto para uso.', 'success');
+      const savedArea = findDeliveryArea(savedCep);
+
+      if (savedArea) {
+        setDeliveryArea(savedArea, savedCep);
+      } else {
+        cepInput.classList.remove('is-valid');
+        cepInput.classList.add('is-invalid');
+        setDeliveryUnavailable(deliveryConfig.outOfAreaMessage);
+        setCepFeedback('O CEP salvo precisa ser atualizado para uma área atendida.', 'error');
+      }
+      return;
+    }
+
+    buscarCEP(cepInput.value);
   }
 
 });
