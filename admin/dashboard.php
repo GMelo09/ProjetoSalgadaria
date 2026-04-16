@@ -131,6 +131,16 @@ $contStatus = [];
 foreach ($statusLabels as $key => $_) {
   $contStatus[$key] = count(array_filter($todosPedidos, fn($p) => $p['status'] === $key));
 }
+$inicioHoje = strtotime(date('Y-m-d 00:00:00'));
+$pedidoEhNovo = static function (array $pedido) use ($inicioHoje): bool {
+  if (empty($pedido['criado_em'])) {
+    return false;
+  }
+
+  $criadoEm = strtotime($pedido['criado_em']);
+  return $criadoEm !== false && $criadoEm >= $inicioHoje;
+};
+$contPedidosNovos = count(array_filter($todosPedidos, $pedidoEhNovo));
 
 $flash = getFlash(); // lê e limpa a flash message da sessão
 
@@ -435,6 +445,10 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
       <div class="filter-bar-admin">
         <span class="filter-bar-label"><i class="bi bi-funnel"></i> Filtrar:</span>
         <button class="filter-chip active" data-status="">Todos</button>
+        <button class="filter-chip" data-status="__novos" title="Pedidos criados hoje">
+          Novos
+          <span class="chip-count"><?= (int)$contPedidosNovos ?></span>
+        </button>
         <?php foreach ($statusLabels as $key => $label): ?>
           <button class="filter-chip" data-status="<?= htmlspecialchars($key) ?>">
             <?= htmlspecialchars($label) ?>
@@ -461,7 +475,8 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             </thead>
             <tbody>
               <?php foreach ($todosPedidos as $ped): ?>
-                <tr data-status="<?= htmlspecialchars($ped['status']) ?>">
+                <?php $isNovo = $pedidoEhNovo($ped); ?>
+                <tr data-status="<?= htmlspecialchars($ped['status']) ?>" data-is-new="<?= $isNovo ? '1' : '0' ?>">
                   <td><span style="font-weight:700;color:var(--rose);">#<?= (int)$ped['id'] ?></span></td>
                   <td><?= htmlspecialchars($ped['nome']) ?></td>
                   <td><?= htmlspecialchars($ped['telefone']) ?></td>
@@ -966,6 +981,10 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
         <!-- Mini filtro de status inline -->
         <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem;" id="filtroRelatorio">
           <button class="rel-filtro-btn active" data-status="" onclick="filtrarRelatorio('')">Todos</button>
+          <button class="rel-filtro-btn" data-status="__novos" onclick="filtrarRelatorio('__novos')" title="Pedidos criados hoje">
+            Novos
+            <span style="background:rgba(0,0,0,.1);border-radius:50px;padding:.05rem .4rem;font-size:.7rem;margin-left:.2rem;"><?= (int)$contPedidosNovos ?></span>
+          </button>
           <?php foreach ($statusLabels as $key => $label): ?>
             <button class="rel-filtro-btn" data-status="<?= $key ?>" onclick="filtrarRelatorio('<?= $key ?>')">
               <?= htmlspecialchars($label) ?>
@@ -989,7 +1008,8 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             </thead>
             <tbody>
               <?php foreach ($todosPedidos as $ped): ?>
-                <tr data-status="<?= htmlspecialchars($ped['status']) ?>">
+                <?php $isNovo = $pedidoEhNovo($ped); ?>
+                <tr data-status="<?= htmlspecialchars($ped['status']) ?>" data-is-new="<?= $isNovo ? '1' : '0' ?>">
                   <td><strong style="color:var(--rose);">#<?= (int)$ped['id'] ?></strong></td>
                   <td>
                     <div style="font-weight:600;font-size:.88rem;"><?= htmlspecialchars($ped['nome']) ?></div>
@@ -1085,7 +1105,7 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
         let total = 0,
           count = 0;
         document.querySelectorAll('#tabelaRelatorio tbody tr[data-status]').forEach(tr => {
-          const show = !status || tr.dataset.status === status;
+          const show = !status || (status === '__novos' ? tr.dataset.isNew === '1' : tr.dataset.status === status);
           tr.style.display = show ? '' : 'none';
           if (show) {
             count++;
@@ -2053,8 +2073,9 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           document.querySelectorAll('.filter-bar-admin .filter-chip').forEach(c => c.classList.remove('active'));
           this.classList.add('active');
           const status = this.dataset.status;
-          document.querySelectorAll('#tabelaPedidos tbody tr').forEach(row => {
-            row.style.display = (!status || row.dataset.status === status) ? '' : 'none';
+          document.querySelectorAll('#tabelaPedidos tbody tr[data-status]').forEach(row => {
+            const show = !status || (status === '__novos' ? row.dataset.isNew === '1' : row.dataset.status === status);
+            row.style.display = show ? '' : 'none';
           });
         });
       });
