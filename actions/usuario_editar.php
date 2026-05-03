@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../dashboard/index.php');
-    exit;
+    redirectTo('../admin/dashboard.php');
 }
 
 // ── 1. Autenticação ──────────────────────────────────────────
@@ -22,8 +23,7 @@ $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
 
 if (!$id || $id <= 0) {
     setFlash('erro', 'ID de usuário inválido.');
-    header('Location: ../dashboard/index.php');
-    exit;
+    redirectTo('../admin/dashboard.php');
 }
 
 // ── 4. Autorização: somente admin pode editar outros usuários ─
@@ -34,8 +34,7 @@ $ehProprioUser = ((int) $_SESSION['usuario_id'] === (int) $id);
 if (!$ehAdmin && !$ehProprioUser) {
     http_response_code(403);
     setFlash('erro', 'Sem permissão para editar este usuário.');
-    header('Location: ../index.php');
-    exit;
+    redirectTo('../index.php');
 }
 
 // ── 5. Prepara o objeto com os dados sanitizados ─────────────
@@ -58,14 +57,12 @@ if ($ehAdmin) {
 // Validações mínimas
 if (empty($usuario->nome)) {
     setFlash('erro', 'O nome não pode ser vazio.');
-    header('Location: ../dashboard/index.php');
-    exit;
+    redirectTo('../admin/dashboard.php');
 }
 
 if (empty($usuario->email)) {
     setFlash('erro', 'E-mail inválido.');
-    header('Location: ../dashboard/index.php');
-    exit;
+    redirectTo('../admin/dashboard.php');
 }
 
 // ── 6. Atualização de senha (opcional) ───────────────────────
@@ -74,8 +71,7 @@ $senha = $_POST['senha'] ?? '';
 if (!empty($senha)) {
     if (strlen($senha) < 6) {
         setFlash('erro', 'A nova senha deve ter pelo menos 6 caracteres.');
-        header('Location: ../dashboard/index.php');
-        exit;
+        redirectTo('../admin/dashboard.php');
     }
     $usuario->AlterarSenha($id, $senha);
 }
@@ -89,5 +85,4 @@ if ($alteradas > 0) {
     setFlash('info', 'Nenhuma alteração detectada.');
 }
 
-header('Location: ../dashboard/index.php');
-exit;
+redirectTo('../admin/dashboard.php');

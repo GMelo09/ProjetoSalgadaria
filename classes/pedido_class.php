@@ -1,24 +1,26 @@
 <?php
+
+declare(strict_types=1);
 require_once('banco_class.php');
 
 class Pedido
 {
-    public $usuario_id;
-    public $nome_cliente;
-    public $telefone;
-    public $endereco;
-    public $cep_entrega;
-    public $area_entrega;
-    public $data_entrega;
-    public $horario_entrega;
-    public $observacao;
-    public $forma_pagamento;
-    public $status;
-    public $taxa_entrega;
-    public $total;
-    public $itens; // array de ['produto_id', 'nome_produto', 'quantidade', 'preco_unitario']
+    public ?int $usuario_id = null;
+    public string $nome_cliente = '';
+    public string $telefone = '';
+    public string $endereco = '';
+    public string $cep_entrega = '';
+    public ?string $area_entrega = null;
+    public string $data_entrega = '';
+    public string $horario_entrega = '';
+    public ?string $observacao = null;
+    public string $forma_pagamento = '';
+    public string $status = 'pendente';
+    public float $taxa_entrega = 0.0;
+    public float $total = 0.0;
+    public array $itens = []; // array de ['produto_id', 'nome_produto', 'quantidade', 'preco_unitario']
 
-    public function Criar()
+    public function Criar(): int|false
     {
         $sql = "INSERT INTO pedidos (
                     usuario_id,
@@ -50,7 +52,7 @@ class Pedido
                 $this->horario_entrega,
                 $this->observacao,
                 $this->forma_pagamento,
-                $this->taxa_entrega ?? 0,
+                $this->taxa_entrega,
                 $this->total,
             ]);
 
@@ -73,16 +75,15 @@ class Pedido
             }
 
             $banco->commit();
-            Banco::desconectar();
-            return $pedido_id;
+            return (int) $pedido_id;
         } catch (Exception $e) {
             $banco->rollBack();
-            Banco::desconectar();
+            error_log('[Pedido::Criar] ' . $e->getMessage());
             return false;
         }
     }
 
-    public function Editar($id_pedido)
+    public function Editar(int $id_pedido): int
     {
         $sql = "UPDATE pedidos SET usuario_id = ?, nome_cliente = ?, telefone = ?, endereco = ?,
                 cep_entrega = ?, area_entrega = ?, data_entrega = ?, horario_entrega = ?,
@@ -102,35 +103,32 @@ class Pedido
             $this->observacao,
             $this->forma_pagamento,
             $this->status,
-            $this->taxa_entrega ?? 0,
+            $this->taxa_entrega,
             $this->total,
             $id_pedido,
         ]);
-        Banco::desconectar();
         return $comando->rowCount();
     }
 
-    public function AtualizarStatus($id_pedido, $status)
+    public function AtualizarStatus(int $id_pedido, string $status): int
     {
         $sql = "UPDATE pedidos SET status = ? WHERE id = ?";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$status, $id_pedido]);
-        Banco::desconectar();
         return $comando->rowCount();
     }
 
-    public function Excluir($id_pedido)
+    public function Excluir(int $id_pedido): int
     {
         $sql = "DELETE FROM pedidos WHERE id = ?";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$id_pedido]);
-        Banco::desconectar();
         return $comando->rowCount();
     }
 
-    public function BuscarPorId($id_pedido)
+    public function BuscarPorId(int $id_pedido): array|false
     {
         $sql = "SELECT p.*, u.nome AS usuario_nome
                 FROM pedidos p
@@ -139,12 +137,10 @@ class Pedido
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$id_pedido]);
-        $pedido = $comando->fetch(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $pedido;
+        return $comando->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function ListarItens($id_pedido)
+    public function ListarItens(int $id_pedido): array
     {
         $sql = "SELECT pi.*
                 FROM pedido_itens pi
@@ -152,12 +148,10 @@ class Pedido
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$id_pedido]);
-        $itens = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $itens;
+        return $comando->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function ListarPorUsuario($id_usuario)
+    public function ListarPorUsuario(int $id_usuario): array
     {
         $sql = "SELECT * FROM pedidos
                 WHERE usuario_id = ?
@@ -165,12 +159,10 @@ class Pedido
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$id_usuario]);
-        $pedidos = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $pedidos;
+        return $comando->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function ListarPorStatus($status)
+    public function ListarPorStatus(string $status): array
     {
         $sql = "SELECT p.*, u.nome AS usuario_nome
                 FROM pedidos p
@@ -180,12 +172,10 @@ class Pedido
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$status]);
-        $pedidos = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $pedidos;
+        return $comando->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function ListarPorData($data_entrega)
+    public function ListarPorData(string $data_entrega): array
     {
         $sql = "SELECT p.*, u.nome AS usuario_nome
                 FROM pedidos p
@@ -195,24 +185,22 @@ class Pedido
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$data_entrega]);
-        $pedidos = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $pedidos;
+        return $comando->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function TotalPedidosHoje()
+    public function TotalPedidosHoje(): int
     {
+        // [3.3] Usa range explícito para aproveitar índice em criado_em
         $sql = "SELECT COUNT(*) AS total FROM pedidos
-                WHERE DATE(criado_em) = CURDATE()";
+                WHERE criado_em >= CURDATE()
+                  AND criado_em < CURDATE() + INTERVAL 1 DAY";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute();
-        $total = $comando->fetch(PDO::FETCH_ASSOC)['total'];
-        Banco::desconectar();
-        return $total;
+        return (int) $comando->fetch(PDO::FETCH_ASSOC)['total'];
     }
 
-    public function UltimoPedidoPorUsuario($id_usuario)
+    public function UltimoPedidoPorUsuario(int $id_usuario): string|null
     {
         $sql = "SELECT MAX(criado_em) AS ultimo_pedido
                 FROM pedidos
@@ -221,35 +209,34 @@ class Pedido
         $comando = $banco->prepare($sql);
         $comando->execute([$id_usuario]);
         $resultado = $comando->fetch(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $resultado['ultimo_pedido'] ?? null;
     }
-    public function ListarRecentes($limite = 10)
+
+    // [2.1] CORRIGIDO: placeholder :limite no SQL antes do prepare()
+    public function ListarRecentes(int $limite = 10): array
     {
-        $limite = (int) $limite;
-        $sql = "SELECT p.*, u.nome AS nome
-            FROM pedidos p
-            LEFT JOIN usuarios u ON p.usuario_id = u.id
-            ORDER BY p.criado_em DESC LIMIT $limite";
+        $limite = max(1, $limite);
+        $sql = "SELECT p.*, u.nome AS nome_usuario
+                FROM pedidos p
+                LEFT JOIN usuarios u ON p.usuario_id = u.id
+                ORDER BY p.criado_em DESC
+                LIMIT :limite";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
+        $comando->bindValue(':limite', $limite, PDO::PARAM_INT);
         $comando->execute();
-        $pedidos = $comando->fetchAll(PDO::FETCH_ASSOC);
-        $comando->bindValue(':limite', (int) $limite, PDO::PARAM_INT);
-        Banco::desconectar();
-        return $pedidos;
+        return $comando->fetchAll(PDO::FETCH_ASSOC);
     }
-    public function ListarTodos()
+
+    public function ListarTodos(): array
     {
         $sql = "SELECT p.*, u.nome AS nome
-            FROM pedidos p
-            LEFT JOIN usuarios u ON p.usuario_id = u.id
-            ORDER BY p.criado_em DESC";
+                FROM pedidos p
+                LEFT JOIN usuarios u ON p.usuario_id = u.id
+                ORDER BY p.criado_em DESC";
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute();
-        $pedidos = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $pedidos;
+        return $comando->fetchAll(PDO::FETCH_ASSOC);
     }
 }

@@ -1,12 +1,12 @@
 <?php
 
+declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../pages/login.php');
-    exit;
+    redirectTo('../pages/login.php');
 }
 
 // ── 1. Validação CSRF ────────────────────────────────────────
@@ -18,8 +18,7 @@ require_once __DIR__ . '/../classes/usuario_class.php';
 $nome     = trim(filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
 $email    = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL);   // false se inválido
 $telefone = trim(filter_input(INPUT_POST, 'telefone', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
-$telefone = preg_replace('/\D/', '', $telefone); // mantém só números
-$telefone = preg_replace('/\D/', '', $telefone);
+$telefone = preg_replace('/\D/', '', $telefone); // [2.6] mantém só uma chamada (linha duplicada removida)
 
 // Aplica máscara antes de salvar no banco
 if (strlen($telefone) === 11) {
@@ -39,39 +38,33 @@ $senha              = $_POST['senha']              ?? '';
 $senha_confirmacao  = $_POST['senha_confirmacao']  ?? '';
 
 // ── 3. Validações no servidor ────────────────────────────────
-// (não confiar apenas no HTML5/JS — qualquer um pode bypassar)
-
 if (empty($nome)) {
-    header('Location: ../pages/login.php?erro=nome_vazio&tab=cadastro');
-    exit;
+    redirectTo('../pages/login.php?erro=nome_vazio&tab=cadastro');
 }
 
 if (!$email) {
-    header('Location: ../pages/login.php?erro=email_invalido&tab=cadastro');
-    exit;
+    redirectTo('../pages/login.php?erro=email_invalido&tab=cadastro');
 }
 
 if (empty($senha)) {
-    header('Location: ../pages/login.php?erro=senha_vazia&tab=cadastro');
-    exit;
+    redirectTo('../pages/login.php?erro=senha_vazia&tab=cadastro');
 }
 
-if (strlen($senha) < 6) {
-    header('Location: ../pages/login.php?erro=senha_curta&tab=cadastro');
-    exit;
+// [2.5] Mínimo de 8 caracteres (padrão NIST 2025)
+if (strlen($senha) < 8) {
+    redirectTo('../pages/login.php?erro=senha_curta&tab=cadastro');
 }
 
 if ($senha !== $senha_confirmacao) {
-    header('Location: ../pages/login.php?erro=senhas_diferentes&tab=cadastro');
-    exit;
+    redirectTo('../pages/login.php?erro=senhas_diferentes&tab=cadastro');
 }
 
 // ── 4. Verifica duplicidade de e-mail ────────────────────────
 $usuario = new Usuario();
 
 if ($usuario->EmailExiste($email)) {
-    header('Location: ../pages/login.php?erro=email_existente&tab=cadastro');
-    exit;
+    // [3.4] Mensagem genérica — não revela se o e-mail já está cadastrado
+    redirectTo('../pages/login.php?erro=cadastro_invalido&tab=cadastro');
 }
 
 // ── 5. Cadastra o usuário ────────────────────────────────────
@@ -85,14 +78,14 @@ try {
 
     if ($id > 0) {
         setFlash('sucesso', 'Conta criada com sucesso! Faça login para continuar.');
-        header('Location: ../pages/login.php?cadastro=sucesso');
+        redirectTo('../pages/login.php?cadastro=sucesso');
     } else {
-        header('Location: ../pages/login.php?erro=servidor&tab=cadastro');
+        redirectTo('../pages/login.php?erro=servidor&tab=cadastro');
     }
 } catch (PDOException $e) {
     // Loga o erro real internamente — não exibe ao usuário
     error_log('[usuario_cadastrar] PDOException: ' . $e->getMessage());
-    header('Location: ../pages/login.php?erro=servidor&tab=cadastro');
+    redirectTo('../pages/login.php?erro=servidor&tab=cadastro');
 }
 
 exit;

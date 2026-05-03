@@ -1,17 +1,20 @@
 <?php
+
+declare(strict_types=1);
+
 require_once('banco_class.php');
 
 class Produto
 {
-    public $categoria_id;
-    public $nome;
-    public $descricao;
-    public $preco;
-    public $imagem = null; // nome do arquivo em uploads/produtos/
-    public $tag;
-    public $ativo = 1;
+    public int    $categoria_id = 0;
+    public string $nome         = '';
+    public string $descricao    = '';
+    public float  $preco        = 0.0;
+    public ?string $imagem      = null; // nome do arquivo em uploads/produtos/
+    public string $tag          = '';
+    public int    $ativo        = 1;
 
-    public function Criar()
+    public function Criar(): int|false
     {
         $sql = "INSERT INTO produtos (categoria_id, nome, descricao, preco, imagem, tag, ativo)
                 VALUES (?, ?, ?, ?, ?, ?, ?)";
@@ -26,12 +29,11 @@ class Produto
             $this->tag,
             $this->ativo,
         ]);
-        $id = $banco->lastInsertId();
-        Banco::desconectar();
-        return $id;
+        $id = (int) $banco->lastInsertId();
+        return $id > 0 ? $id : false;
     }
 
-    public function Editar($id_produto)
+    public function Editar(int $id_produto): int
     {
         // Se $this->imagem for null, nao altera a coluna imagem no banco
         if ($this->imagem !== null) {
@@ -66,21 +68,19 @@ class Produto
         $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute($params);
-        Banco::desconectar();
         return $comando->rowCount();
     }
 
-    public function Excluir($id_produto)
+    public function Excluir(int $id_produto): int
     {
         $sql     = "UPDATE produtos SET ativo = 0 WHERE id = ?";
         $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$id_produto]);
-        Banco::desconectar();
         return $comando->rowCount();
     }
 
-    public function BuscarPorId($id_produto)
+    public function BuscarPorId(int $id_produto): array|false
     {
         $sql = "SELECT p.*, c.nome AS categoria_nome
                 FROM produtos p
@@ -89,12 +89,10 @@ class Produto
         $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$id_produto]);
-        $produto = $comando->fetch(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $produto;
+        return $comando->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function ListarTodos()
+    public function ListarTodos(): array
     {
         $sql = "SELECT p.*, c.nome AS categoria_nome
                 FROM produtos p
@@ -103,12 +101,10 @@ class Produto
         $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute();
-        $produtos = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $produtos;
+        return $comando->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function ListarPorCategoria($id_categoria)
+    public function ListarPorCategoria(int $id_categoria): array
     {
         $sql = "SELECT p.*, c.nome AS categoria_nome
                 FROM produtos p
@@ -118,12 +114,10 @@ class Produto
         $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$id_categoria]);
-        $produtos = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $produtos;
+        return $comando->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function ListarPorTag($tag)
+    public function ListarPorTag(string $tag): array
     {
         $sql = "SELECT p.*, c.nome AS categoria_nome
                 FROM produtos p
@@ -133,9 +127,7 @@ class Produto
         $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$tag]);
-        $produtos = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
-        return $produtos;
+        return $comando->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function SalgadosDestaque(): array
@@ -143,18 +135,15 @@ class Produto
         $banco     = Banco::conectar();
         $comando   = $banco->query("SELECT * FROM vw_salgados_destaque");
         $todos     = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
 
         $destaques = array_slice($todos, 0, 5);
 
-        // Fallback: sem vendas no mês passado → pega os mais recentes
+        // Fallback: sem vendas no mes passado → pega os mais recentes
         if (empty($destaques)) {
-            $banco     = Banco::conectar();
             $comando   = $banco->query(
                 "SELECT * FROM produtos WHERE categoria_id = 1 AND ativo = 1 ORDER BY criado_em DESC LIMIT 5"
             );
             $destaques = $comando->fetchAll(PDO::FETCH_ASSOC);
-            Banco::desconectar();
         }
 
         return $destaques;
@@ -165,31 +154,26 @@ class Produto
         $banco     = Banco::conectar();
         $comando   = $banco->query("SELECT * FROM vw_doces_destaque");
         $todos     = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
 
         $destaques = array_slice($todos, 0, 5);
 
-        // Fallback: sem vendas no mês passado → pega os mais recentes
+        // Fallback: sem vendas no mes passado → pega os mais recentes
         if (empty($destaques)) {
-            $banco     = Banco::conectar();
             $comando   = $banco->query(
                 "SELECT * FROM produtos WHERE categoria_id = 2 AND ativo = 1 ORDER BY criado_em DESC LIMIT 5"
             );
             $destaques = $comando->fetchAll(PDO::FETCH_ASSOC);
-            Banco::desconectar();
         }
 
         return $destaques;
     }
 
-    public function TotalProdutos()
+    public function TotalProdutos(): int
     {
         $sql     = "SELECT COUNT(*) AS total FROM produtos WHERE ativo = 1";
         $banco   = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute();
-        $total   = $comando->fetch(PDO::FETCH_ASSOC)['total'];
-        Banco::desconectar();
-        return $total;
+        return (int) $comando->fetch(PDO::FETCH_ASSOC)['total'];
     }
 }

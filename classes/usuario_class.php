@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 require_once('banco_class.php');
 
 class Usuario
@@ -25,7 +27,6 @@ class Usuario
         $comando   = $banco->prepare($sql);
         $ok        = $comando->execute([$this->nome, $this->email, $hashSenha, $this->telefone]);
         $id        = $ok ? (int) $banco->lastInsertId() : false;
-        Banco::desconectar();
         return $id;
     }
 
@@ -36,7 +37,6 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$this->nome, $this->email, $this->telefone, $this->id_tipo, $id_usuario]);
         $linhas  = $comando->rowCount();
-        Banco::desconectar();
         return $linhas;
     }
 
@@ -48,7 +48,6 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$hash, $id_usuario]);
         $linhas  = $comando->rowCount();
-        Banco::desconectar();
         return $linhas;
     }
 
@@ -71,7 +70,6 @@ class Usuario
             $id_usuario,
         ]);
         $linhas = $comando->rowCount();
-        Banco::desconectar();
         return $linhas;
     }
 
@@ -82,7 +80,6 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$id_usuario]);
         $linhas  = $comando->rowCount();
-        Banco::desconectar();
         return $linhas;
     }
 
@@ -93,7 +90,6 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$bloqueado ? 1 : 0, $id_usuario]);
         $linhas  = $comando->rowCount();
-        Banco::desconectar();
         return $linhas;
     }
 
@@ -105,7 +101,6 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$this->email]);
         $usuario = $comando->fetch(PDO::FETCH_ASSOC);
-        Banco::desconectar();
 
         if (!$usuario) {
             // Simula tempo de hash para evitar timing attack
@@ -139,7 +134,6 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$id_usuario]);
         $usuario = $comando->fetch(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $usuario;
     }
 
@@ -150,7 +144,6 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$email]);
         $usuario = $comando->fetch(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $usuario;
     }
 
@@ -174,7 +167,6 @@ class Usuario
         $comando  = $banco->prepare($sql);
         $comando->execute();
         $usuarios = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $usuarios;
     }
 
@@ -187,7 +179,6 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$id_tipo]);
         $usuarios = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $usuarios;
     }
 
@@ -198,10 +189,8 @@ class Usuario
         $comando = $banco->prepare($sql);
         $comando->execute([$email]);
         $total   = (int) $comando->fetch(PDO::FETCH_ASSOC)['total'];
-        Banco::desconectar();
         return $total > 0;
     }
-    // usuario_class.php — adicionar este método
     public function CriarAdmin(string $nome, string $email, string $senha, string $telefone, int $id_tipo): int
     {
         $sql     = "INSERT INTO usuarios (nome, email, senha, telefone, id_tipo) VALUES (?, ?, ?, ?, ?)";
@@ -215,7 +204,22 @@ class Usuario
             $id_tipo,
         ]);
         $id = $ok ? (int) $banco->lastInsertId() : 0;
-        Banco::desconectar();
         return $id;
+    }
+
+    // [2.3] MOVIDO DO DASHBOARD: query de clientes novos por período
+    public function ClientesNovosPorPeriodo(string $inicio, string $fim): int
+    {
+        // [3.3] Usa range explícito para aproveitar índice em criado_em
+        $inicioTs = $inicio . ' 00:00:00';
+        $fimTs    = $fim    . ' 23:59:59';
+        $sql = "SELECT COUNT(*) AS total FROM usuarios
+                WHERE criado_em >= ?
+                  AND criado_em <= ?
+                  AND id_tipo = 2";
+        $banco   = Banco::conectar();
+        $comando = $banco->prepare($sql);
+        $comando->execute([$inicioTs, $fimTs]);
+        return (int) $comando->fetch(PDO::FETCH_ASSOC)['total'];
     }
 }

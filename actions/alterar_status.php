@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 requireAdminAjax();
@@ -10,6 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['sucesso' => false, 'mensagem' => 'Método inválido.']);
     exit;
 }
+
+csrfValidar();
 
 require_once __DIR__ . '/../classes/pedido_class.php';
 

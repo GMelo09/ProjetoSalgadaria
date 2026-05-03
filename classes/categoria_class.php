@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 require_once('banco_class.php');
 
 class Categoria
@@ -12,7 +14,6 @@ class Categoria
         $comando = $banco->prepare($sql);
         $comando->execute([$this->nome]);
         $id = $banco->lastInsertId();
-        Banco::desconectar();
         return $id;
     }
 
@@ -22,7 +23,6 @@ class Categoria
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$this->nome, $id_categoria]);
-        Banco::desconectar();
         return $comando->rowCount();
     }
 
@@ -32,7 +32,6 @@ class Categoria
         $banco = Banco::conectar();
         $comando = $banco->prepare($sql);
         $comando->execute([$id_categoria]);
-        Banco::desconectar();
         return $comando->rowCount();
     }
 
@@ -43,7 +42,6 @@ class Categoria
         $comando = $banco->prepare($sql);
         $comando->execute([$id_categoria]);
         $categoria = $comando->fetch(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $categoria;
     }
 
@@ -54,7 +52,6 @@ class Categoria
         $comando = $banco->prepare($sql);
         $comando->execute();
         $categorias = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $categorias;
     }
 
@@ -69,7 +66,6 @@ class Categoria
         $comando = $banco->prepare($sql);
         $comando->execute();
         $categorias = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $categorias;
     }
 }

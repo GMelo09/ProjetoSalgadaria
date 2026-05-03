@@ -55,7 +55,7 @@ $totalPacotes  = count($pacoteObj->ListarAtivos());
                 <i class="bi bi-chevron-down" style="font-size:.65rem;"></i>
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="./Pages/meus_pedidos.php"><i class="bi bi-bag-heart"></i> Meus Pedidos</a></li>
+                <li><a class="dropdown-item" href="./pages/meus_pedidos.php"><i class="bi bi-bag-heart"></i> Meus Pedidos</a></li>
                 <?php if (!empty($_SESSION['eh_admin'])): ?>
                   <li>
                     <hr class="dropdown-divider">

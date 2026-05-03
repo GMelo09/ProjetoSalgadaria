@@ -1,34 +1,33 @@
 <?php
+
+declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
+requireAdminAjax();
+
+header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    // Se alguém acessar via GET, redireciona sem fazer nada
-    header('Location: ../index.php');
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Método inválido.']);
     exit;
 }
 
-// Valida CSRF mesmo no logout — evita logout forçado por terceiros
 csrfValidar();
 
-// Destrói todos os dados da sessão
-$_SESSION = [];
+require_once __DIR__ . '/../classes/pacote_class.php';
 
-// Apaga o cookie de sessão do navegador
-if (ini_get('session.use_cookies')) {
-    $params = session_get_cookie_params();
-    setcookie(
-        session_name(),
-        '',
-        time() - 42000,
-        $params['path'],
-        $params['domain'],
-        $params['secure'],
-        $params['httponly']
-    );
+$id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
+
+if (!$id || $id <= 0) {
+    echo json_encode(['sucesso' => false, 'mensagem' => 'ID inválido.']);
+    exit;
 }
 
-session_destroy();
+$pacote = new Pacote();
+$ok     = $pacote->Excluir($id);
 
-header('Location: ../pages/login.php?saiu=1');
+echo json_encode([
+    'sucesso'  => $ok > 0,
+    'mensagem' => $ok > 0 ? 'Pacote desativado.' : 'Pacote não encontrado.',
+]);
 exit;

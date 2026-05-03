@@ -5,8 +5,7 @@ require_once __DIR__ . '/../classes/usuario_class.php';
 sessionStart();
 
 if (!isLoggedIn()) {
-  header('Location: login.php?erro=login_obrigatorio&tab=cadastro');
-  exit;
+  redirectTo('pages/login.php?erro=login_obrigatorio&tab=cadastro');
 }
 
 $checkoutErrors = [

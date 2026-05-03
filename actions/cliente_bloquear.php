@@ -4,12 +4,15 @@ require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 requireAdminAjax();
 
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['sucesso' => false, 'mensagem' => 'Método inválido.']);
     exit;
 }
+
+csrfValidar();
 
 require_once __DIR__ . '/../classes/usuario_class.php';
 

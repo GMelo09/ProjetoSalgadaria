@@ -10,6 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+csrfValidar();
+
 require_once __DIR__ . '/../classes/pacote_class.php';
 
 $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);

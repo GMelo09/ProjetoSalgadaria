@@ -1,14 +1,15 @@
 <?php
+
+declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/delivery.php';
 sessionStart();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../pages/carrinho.php');
-    exit;
+    redirectTo('/pages/carrinho.php');
 }
 
-requireLogin('../pages/login.php?erro=login_obrigatorio&tab=cadastro');
+requireLogin('pages/login.php?erro=login_obrigatorio&tab=cadastro');
 
 // CSRF
 csrfValidar();
@@ -16,6 +17,7 @@ csrfValidar();
 require_once __DIR__ . '/../classes/pedido_class.php';
 require_once __DIR__ . '/../classes/produto_class.php';
 require_once __DIR__ . '/../classes/usuario_class.php';
+require_once __DIR__ . '/../classes/pacote_class.php';
 
 // ── 1. Valida e sanitiza os dados do formulário ───────────────
 $nome            = trim(filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CHARS) ?? '');
@@ -58,38 +60,32 @@ if (
     || empty($horarioEntrega)
     || empty($forma_pagamento)
 ) {
-    header('Location: ../pages/checkout.php?erro=campos_obrigatorios');
-    exit;
+    redirectTo('/pages/checkout.php?erro=campos_obrigatorios');
 }
 
 if (strlen(deliveryNormalizeCep($cep)) !== 8) {
-    header('Location: ../pages/checkout.php?erro=cep_invalido');
-    exit;
+    redirectTo('/pages/checkout.php?erro=cep_invalido');
 }
 
 if (!$areaEntrega) {
-    header('Location: ../pages/checkout.php?erro=cep_fora_area');
-    exit;
+    redirectTo('pages/checkout.php?erro=cep_fora_area');
 }
 
 // Forma de pagamento válida
 $formasValidas = ['pix', 'dinheiro', 'cartao'];
 if (!in_array($forma_pagamento, $formasValidas, true)) {
-    header('Location: ../pages/checkout.php?erro=pagamento_invalido');
-    exit;
+    redirectTo('/pages/checkout.php?erro=pagamento_invalido');
 }
 
 // Data de entrega respeita antecedência mínima
 $dataMinima = DateTime::createFromFormat('!Y-m-d', deliveryMinimumDate()) ?: new DateTime('tomorrow');
 $dataEntregaObj = DateTime::createFromFormat('!Y-m-d', $data_entrega);
 if (!$dataEntregaObj || $dataEntregaObj < $dataMinima) {
-    header('Location: ../pages/checkout.php?erro=prazo_minimo');
-    exit;
+    redirectTo('/pages/checkout.php?erro=prazo_minimo');
 }
 
 if (!deliveryTimeIsValid($horarioEntrega)) {
-    header('Location: ../pages/checkout.php?erro=horario_invalido');
-    exit;
+    redirectTo('/pages/checkout.php?erro=horario_invalido');
 }
 
 $cidadeUf = trim($cidade . ($uf ? '/' . $uf : ''));
@@ -105,33 +101,55 @@ $itensJson = $_POST['itens_carrinho'] ?? '';
 $itensBrutos = json_decode($itensJson, true);
 
 if (empty($itensBrutos) || !is_array($itensBrutos)) {
-    header('Location: ../pages/carrinho.php?erro=carrinho_vazio');
-    exit;
+    redirectTo('/pages/carrinho.php?erro=carrinho_vazio');
 }
 
 // ── 3. VALIDAÇÃO DE PREÇOS NO BACKEND ────────────────────────
-// Busca o preço real de cada produto no banco — ignora o preço vindo do JS
+// Busca o preço real de cada produto/pacote no banco — ignora o preço vindo do JS
 $produtoObj = new Produto();
+$pacoteObj  = new Pacote();
 $itensValidados = [];
 $totalReal = 0;
 
 foreach ($itensBrutos as $item) {
-    $produto_id = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
+    $itemId     = (string) ($item['id'] ?? '');
     $quantidade = max(1, (int) ($item['quantidade'] ?? 1));
     $nomeProduto = trim(strip_tags($item['nome'] ?? ''));
 
-    // Pacotes têm ID no formato 'pacote-timestamp' — trata separado
-    if (!$produto_id || str_contains((string)($item['id'] ?? ''), 'pacote')) {
-        // Pacote: usa o nome e o preço do frontend (não tem produto_id fixo)
-        // mas valida quantidade mínima e máxima
-        $quantidade = min(max(1, $quantidade), 500);
-        $precoUnitario = round((float) ($item['preco'] ?? 0), 2);
+    // ── Pacote: ID no formato "pacote_3" ou "pacote-timestamp" ──
+    if (str_contains($itemId, 'pacote')) {
+        // [1.1] CORREÇÃO: extrai o ID numérico do pacote e busca preço no banco
+        // Tenta capturar o id numérico depois do separador (ex: "pacote_3" → 3)
+        preg_match('/\D(\d+)$/', $itemId, $matches);
+        $pacoteId = isset($matches[1]) ? (int) $matches[1] : 0;
 
-        if ($precoUnitario <= 0) continue;
+        if ($pacoteId <= 0) {
+            // ID não reconhecível — descarta o item
+            error_log('[pedido_cadastrar] Pacote com ID inválido descartado: ' . $itemId);
+            continue;
+        }
+
+        $pacoteBanco = $pacoteObj->BuscarPorId($pacoteId);
+
+        if (!$pacoteBanco || empty($pacoteBanco['ativo'])) {
+            // Pacote não existe ou está inativo — descarta
+            error_log('[pedido_cadastrar] Pacote ID ' . $pacoteId . ' não encontrado ou inativo.');
+            continue;
+        }
+
+        // Preço vem EXCLUSIVAMENTE do banco — nunca do frontend
+        $precoUnitario = round((float) ($pacoteBanco['preco'] ?? 0), 2);
+
+        if ($precoUnitario <= 0) {
+            error_log('[pedido_cadastrar] Pacote ID ' . $pacoteId . ' sem preço configurado.');
+            continue;
+        }
+
+        $quantidade = min(max(1, $quantidade), 500);
 
         $itensValidados[] = [
             'produto_id'     => null,
-            'nome_produto'   => $nomeProduto,
+            'nome_produto'   => $nomeProduto ?: ($pacoteBanco['titulo'] ?? 'Pacote ' . $pacoteBanco['quantidade'] . ' un.'),
             'quantidade'     => $quantidade,
             'preco_unitario' => $precoUnitario,
         ];
@@ -139,7 +157,13 @@ foreach ($itensBrutos as $item) {
         continue;
     }
 
-    // Produto normal: busca preço real no banco
+    // ── Produto normal: busca preço real no banco ──
+    $produto_id = filter_var($itemId, FILTER_VALIDATE_INT);
+
+    if (!$produto_id) {
+        continue;
+    }
+
     $produto = $produtoObj->BuscarPorId($produto_id);
 
     if (!$produto || empty($produto['ativo'])) {
@@ -147,7 +171,7 @@ foreach ($itensBrutos as $item) {
         continue;
     }
 
-    $precoReal = (float) $produto['preco'];
+    $precoReal  = (float) $produto['preco'];
     $quantidade = min(max(1, $quantidade), 999);
 
     $itensValidados[] = [
@@ -160,8 +184,7 @@ foreach ($itensBrutos as $item) {
 }
 
 if (empty($itensValidados)) {
-    header('Location: ../pages/carrinho.php?erro=itens_invalidos');
-    exit;
+    redirectTo('pages/carrinho.php?erro=itens_invalidos');
 }
 
 $subtotalItens = round($totalReal, 2);
@@ -188,8 +211,7 @@ $pedido_id = $pedido->Criar();
 
 if (!$pedido_id) {
     error_log('[pedido_cadastrar] Falha ao criar pedido para ' . $nome);
-    header('Location: ../pages/checkout.php?erro=servidor');
-    exit;
+    redirectTo('/pages/checkout.php?erro=servidor');
 }
 
 // ── 5. Salva endereço do cliente para os próximos checkouts ──
@@ -219,6 +241,5 @@ try {
     error_log('[pedido_cadastrar] Falha ao salvar dados de entrega do usuario ' . $usuario_id . ': ' . $exception->getMessage());
 }
 
-// ── 5. Sucesso — redireciona para página de confirmação ───────
-header('Location: ../pages/pedido_confirmado.php?id=' . $pedido_id);
-exit;
+// ── 6. Sucesso — redireciona para página de confirmação ───────
+redirectTo('/pages/pedido_confirmado.php?id=' . $pedido_id);

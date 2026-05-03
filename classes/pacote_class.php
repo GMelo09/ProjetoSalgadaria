@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 require_once('banco_class.php');
 
 class Pacote
@@ -23,7 +25,6 @@ class Pacote
             $this->ativo   ? 1 : 0,
         ]);
         $id = $ok ? (int) $banco->lastInsertId() : false;
-        Banco::desconectar();
         return $id;
     }
 
@@ -43,7 +44,6 @@ class Pacote
             $id,
         ]);
         $linhas = $comando->rowCount();
-        Banco::desconectar();
         return $linhas;
     }
 
@@ -54,7 +54,6 @@ class Pacote
         $comando = $banco->prepare("UPDATE pacotes SET ativo = 0 WHERE id = ?");
         $comando->execute([$id]);
         $linhas  = $comando->rowCount();
-        Banco::desconectar();
         return $linhas;
     }
 
@@ -64,7 +63,6 @@ class Pacote
         $comando = $banco->prepare("SELECT * FROM pacotes WHERE id = ?");
         $comando->execute([$id]);
         $pacote  = $comando->fetch(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $pacote;
     }
 
@@ -75,7 +73,6 @@ class Pacote
         $comando = $banco->prepare("SELECT * FROM pacotes WHERE ativo = 1 ORDER BY quantidade ASC");
         $comando->execute();
         $pacotes = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $pacotes;
     }
 
@@ -86,7 +83,6 @@ class Pacote
         $comando = $banco->prepare("SELECT * FROM pacotes ORDER BY quantidade ASC");
         $comando->execute();
         $pacotes = $comando->fetchAll(PDO::FETCH_ASSOC);
-        Banco::desconectar();
         return $pacotes;
     }
 
@@ -96,6 +92,5 @@ class Pacote
         $banco = Banco::conectar();
         $banco->prepare("UPDATE pacotes SET popular = 0")->execute();
         $banco->prepare("UPDATE pacotes SET popular = 1 WHERE id = ?")->execute([$id]);
-        Banco::desconectar();
     }
 }

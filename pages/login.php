@@ -3,8 +3,7 @@ require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 
 if (isLoggedIn()) {
-  header('Location: ../index.php');
-  exit;
+  redirectTo('index.php');
 }
 
 $erros = [

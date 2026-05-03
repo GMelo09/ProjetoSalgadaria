@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
@@ -76,7 +78,7 @@ foreach ($itens as $item) {
       <?php if (!empty($pedido['observacao'])): ?>
         <div style="grid-column:1/-1;"><strong>Obs:</strong> <?= htmlspecialchars($pedido['observacao']) ?></div>
       <?php endif; ?>
-    </div>
+    </div>a
   </div>
 
   <!-- Entrega e Pagamento -->

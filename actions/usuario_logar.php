@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart(); // SEMPRE antes de qualquer $_SESSION
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../pages/login.php');
-    exit;
+    redirectTo('../pages/login.php');
 }
 
 // ── 1. Validação CSRF ────────────────────────────────────────
@@ -16,8 +17,7 @@ csrfValidar();
 if (rateLimitVerificar()) {
     $segundos = rateLimitSegundosRestantes();
     $minutos  = ceil($segundos / 60);
-    header('Location: ../pages/login.php?erro=bloqueado&min=' . $minutos);
-    exit;
+    redirectTo('../pages/login.php?erro=bloqueado&min=' . $minutos);
 }
 
 require_once __DIR__ . '/../classes/usuario_class.php';
@@ -28,13 +28,11 @@ $email = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL);
 $senha = $_POST['senha'] ?? ''; // senha não deve ser transformada
 
 if (empty($email)) {
-    header('Location: ../pages/login.php?erro=email_invalido');
-    exit;
+    redirectTo('../pages/login.php?erro=email_invalido');
 }
 
 if (empty($senha)) {
-    header('Location: ../pages/login.php?erro=senha_vazia');
-    exit;
+    redirectTo('../pages/login.php?erro=senha_vazia');
 }
 
 // ── 4. Autenticação ──────────────────────────────────────────
@@ -50,8 +48,7 @@ if ($resultado === null) {
 
     // Mensagem genérica — nunca diga se foi o email ou a senha
     // (previne user enumeration)
-    header('Location: ../pages/login.php?erro=credenciais');
-    exit;
+    redirectTo('../pages/login.php?erro=credenciais');
 }
 
 // ── 5. Login bem-sucedido ────────────────────────────────────
@@ -73,5 +70,4 @@ $_SESSION['eh_admin']     = ((int) $resultado['id_tipo'] === 1) ? 1 : 0;
 unset($resultado['senha']);
 $_SESSION['usuario'] = $resultado;
 
-header('Location: ../index.php');
-exit;
+redirectTo('../index.php');

@@ -33,7 +33,7 @@ $periodoSelecionado = $_GET['periodo'] ?? 'mes';
 $periodos = [
   'semana'    => ['label' => 'Semanal',   'inicio' => date('Y-m-d', strtotime('-7 days')),   'fim' => date('Y-m-d')],
   'mes'       => ['label' => 'Mensal',    'inicio' => date('Y-m-01'),                         'fim' => date('Y-m-d')],
-  'trimestre' => ['label' => 'Semestral', 'inicio' => date('Y-m-d', strtotime('-6 months')), 'fim' => date('Y-m-d')],
+  'trimestre' => ['label' => 'Trimestral', 'inicio' => date('Y-m-d', strtotime('-3 months')), 'fim' => date('Y-m-d')],
   'ano'       => ['label' => 'Anual',     'inicio' => date('Y-01-01'),                        'fim' => date('Y-12-31')],
 ];
 
@@ -49,12 +49,8 @@ $dataFim       = $periodoConfig['fim'];
 // ── Dados do período selecionado ─────────────────────────────
 $fatPeriodo = $relatorioObj->FaturamentoPorPeriodo($dataInicio, $dataFim);
 
-// Clientes novos no período
-$banco   = Banco::conectar();
-$cmd     = $banco->prepare("SELECT COUNT(*) AS total FROM usuarios WHERE DATE(criado_em) BETWEEN ? AND ? AND id_tipo = 2");
-$cmd->execute([$dataInicio, $dataFim]);
-$clientesNovos = (int) $cmd->fetch(PDO::FETCH_ASSOC)['total'];
-Banco::desconectar();
+// [2.3] Clientes novos no período — via método da classe (sem SQL direto no dashboard)
+$clientesNovos = $usuarioObj->ClientesNovosPorPeriodo($dataInicio, $dataFim);
 
 $_totalPedidos = (int)($fatPeriodo['total_pedidos'] ?? 0);
 $_totalReceita = (float)($fatPeriodo['faturamento_total'] ?? 0);
@@ -66,17 +62,23 @@ $dadosPeriodo = [
   'clientesNovos' => $clientesNovos,
 ];
 
-// ── Resumo dos últimos 6 meses com variação ──────────────────
+// ── [3.2] Resumo dos últimos 6 meses — UMA query com GROUP BY (elimina N+1 de 6 queries)
+$dadosMeses = $relatorioObj->FaturamentoPorMeses(6);
+// Indexa por chave 'YYYY-MM' para lookup rápido
+$mesesIndexado = [];
+foreach ($dadosMeses as $row) {
+  $mesesIndexado[$row['mes']] = $row;
+}
+
 $resumoMeses = [];
 $receitaAnterior = null;
 
 for ($i = 5; $i >= 0; $i--) {
-  $mesInicio = date('Y-m-01', strtotime("-{$i} months"));
-  $mesFim    = date('Y-m-t',  strtotime("-{$i} months"));
-  $mesLabel = date('M/Y', strtotime($mesInicio));
-  $fat = $relatorioObj->FaturamentoPorPeriodo($mesInicio, $mesFim);
-  $receita = (float)($fat['faturamento_total'] ?? 0);
-  $pedidos = (int)($fat['total_pedidos'] ?? 0);
+  $chave    = date('Y-m', strtotime("-{$i} months"));
+  $mesLabel = date('M/Y', strtotime("-{$i} months"));
+  $fat      = $mesesIndexado[$chave] ?? [];
+  $receita  = (float) ($fat['faturamento'] ?? 0);
+  $pedidos  = (int)   ($fat['total_pedidos'] ?? 0);
 
   // Variação em relação ao mês anterior
   $variacao = 0;
@@ -142,6 +144,7 @@ $pedidoEhNovo = static function (array $pedido) use ($inicioHoje): bool {
 };
 $contPedidosNovos = count(array_filter($todosPedidos, $pedidoEhNovo));
 
+$csrfToken = csrfToken();
 $flash = getFlash(); // lê e limpa a flash message da sessão
 
 ?>
@@ -395,8 +398,8 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
                 <tr>
                   <td><span style="font-weight:700;color:var(--rose);">#<?= (int)$ped['id'] ?></span></td>
                   <td>
-                    <strong><?= htmlspecialchars($ped['nome']) ?></strong><br>
-                    <small class="text-muted"><?= htmlspecialchars($ped['telefone']) ?></small>
+                    <strong><?= htmlspecialchars($ped['nome'] ?? 'Sem nome') ?></strong><br>
+                    <small class="text-muted"><?= htmlspecialchars($ped['telefone'] ?? '') ?></small>
                   </td>
                   <td>
                     <span style="display:inline-flex;align-items:center;gap:.3rem;font-size:.82rem;">
@@ -644,19 +647,19 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
                   <td>
                     <div style="display:flex;align-items:center;gap:.6rem;">
                       <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--rose-pale),var(--rose-blush));display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:var(--rose);">
-                        <?= strtoupper(substr($cli['nome'], 0, 1)) ?>
+                        <?= strtoupper(substr($cli['nome'] ?? '', 0, 1)) ?>
                       </div>
-                      <?= htmlspecialchars($cli['nome']) ?>
+                      <?= htmlspecialchars($cli['nome'] ?? '') ?>
                     </div>
                   </td>
-                  <td style="color:var(--muted);font-size:.82rem;"><?= htmlspecialchars($cli['email']) ?></td>
-                  <td style="font-size:.82rem;"><?= htmlspecialchars($cli['telefone'] ?? '—') ?></td>
+                  <td style="color:var(--muted);font-size:.82rem;"><?= htmlspecialchars($cli['email'] ?? '') ?></td>
+                  <td style="font-size:.82rem;"><?= htmlspecialchars($cli['telefone'] ?? '') ?></td>
                   <td>
                     <span style="background:var(--cream);padding:.2rem .65rem;border-radius:50px;font-size:.78rem;font-weight:700;">
                       <?= (int)($cli['total_pedidos'] ?? 0) ?>
                     </span>
                   </td>
-                  <td style="font-size:.82rem;color:var(--muted);"><?= date('d/m/Y', strtotime($cli['criado_em'])) ?></td>
+                  <td style="font-size:.82rem;color:var(--muted);"><?= date('d/m/Y', strtotime($cli['criado_em'] ?? '')) ?></td>
                   <td>
                     <?php if ($cli['bloqueado'] ?? 0): ?>
                       <span class="badge-status badge-danger">Bloqueado</span>
@@ -666,8 +669,8 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
                   </td>
                   <td>
                     <button class="btn btn-xs <?= ($cli['bloqueado'] ?? 0) ? 'btn-success' : 'btn-danger' ?>"
-                      onclick="alterarBloqueioCliente(<?= (int)$cli['id'] ?>, <?= ($cli['bloqueado'] ?? 0) ? 0 : 1 ?>, <?= htmlspecialchars(json_encode($cli['nome']), ENT_QUOTES) ?>)">
-                      <i class="bi bi-<?= ($cli['bloqueado'] ?? 0) ? 'unlock' : 'lock' ?>"></i>
+                      onclick="alterarBloqueioCliente(<?= (int)$cli['id'] ?>, <?= ($cli['bloqueado'] ?? 0) ? 0 : 1 ?>, <?= htmlspecialchars(json_encode($cli['nome']), ENT_QUOTES) ?>>
+                      <i class=" bi bi-<?= ($cli['bloqueado'] ?? 0) ? 'unlock' : 'lock' ?>"></i>
                       <?= ($cli['bloqueado'] ?? 0) ? 'Desbloquear' : 'Bloquear' ?>
                     </button>
                   </td>
@@ -1459,8 +1462,9 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           </div>
 
           <div class="modal-body" style="padding:1.75rem;background:#fafafa;">
-            <form id="formPacote">
+            <form id="formPacote" action="../actions/pacote_salvar.php" method="POST">
               <input type="hidden" name="id" id="pacoteId">
+              <?= csrfField() ?>
 
               <!-- Preview card ao vivo -->
               <div id="pacotePreview" style="background:linear-gradient(135deg,#fdf2f8,#fff8f0);border:1.5px solid #f3c6e0;border-radius:16px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1.25rem;">
@@ -1603,6 +1607,23 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
 
     <!-- ── Scripts da seção de pacotes ── -->
     <script>
+      const csrfToken = <?= json_encode($csrfToken, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+
+      function withCsrfFormData(formData) {
+        if (!formData.has('csrf_token')) {
+          formData.append('csrf_token', csrfToken);
+        }
+        return formData;
+      }
+
+      function withCsrfParams(params) {
+        const searchParams = params instanceof URLSearchParams ? params : new URLSearchParams(params);
+        if (!searchParams.has('csrf_token')) {
+          searchParams.append('csrf_token', csrfToken);
+        }
+        return searchParams.toString();
+      }
+
       /* Alterna entre cards e tabela */
       function togglePacoteView(btn) {
         const cards = document.getElementById('viewCards');
@@ -1666,7 +1687,7 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
 
         // Sincroniza estilos dos labels
         toggleLabel('lblPopular', 'pacotePopular', '#FB8C00');
-        toggleLabel('lblAtivo', 'lblAtivo', '#43A047');
+        toggleLabel('lblAtivo', 'pacoteAtivo', '#43A047');
         // Corrigido:
         document.getElementById('lblAtivo').style.borderColor =
           document.getElementById('pacoteAtivo').checked ? '#43A047' : 'var(--cream)';
@@ -1685,9 +1706,9 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Salvando…';
 
-        const fd = new FormData(this);
+        const fd = withCsrfFormData(new FormData(this));
 
-        fetch('actions/pacote_salvar.php', {
+        fetch('../actions/pacote_salvar.php', {
             method: 'POST',
             body: fd
           })
@@ -1731,7 +1752,8 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           if (!res.isConfirmed) return;
           const fd = new FormData();
           fd.append('id', id);
-          fetch('actions/pacote_excluir.php', {
+          withCsrfFormData(fd);
+          fetch('../actions/pacote_excluir.php', {
               method: 'POST',
               body: fd
             })
@@ -1751,55 +1773,6 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
       }
     </script>
 
-    <!-- ═══════════════ MODAL: PACOTE ═══════════════ -->
-    <div class="modal fade" id="modalPacote" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="modalPacoteTitulo"><i class="bi bi-box-seam"></i> Pacote</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <form id="formPacote">
-              <input type="hidden" name="id" id="pacoteId">
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Quantidade (un.) <span class="required">*</span></label>
-                  <input type="number" class="form-control" name="quantidade" id="pacoteQtd"
-                    required min="1" placeholder="Ex: 100">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Máx. Sabores <span class="required">*</span></label>
-                  <input type="number" class="form-control" name="max_sabores" id="pacoteSabores"
-                    required min="1" placeholder="Ex: 5">
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Descrição</label>
-                <input type="text" class="form-control" name="descricao" id="pacoteDesc"
-                  maxlength="100" placeholder="Ex: Ideal para festas médias">
-              </div>
-              <div class="form-row" style="gap:1.5rem;margin-top:.5rem;">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="popular" id="pacotePopular" value="1">
-                  <label class="form-check-label" for="pacotePopular">
-                    <i class="bi bi-star-fill" style="color:var(--warning);"></i> Marcar como Popular
-                  </label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="ativo" id="pacoteAtivo" value="1" checked>
-                  <label class="form-check-label" for="pacoteAtivo">Pacote ativo</label>
-                </div>
-              </div>
-              <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top:1.5rem;">
-                <i class="bi bi-check2-circle"></i> Salvar Pacote
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- ═══════════════ MODAL: NOVO USUÁRIO ═══════════════ -->
     <div class="modal fade" id="modalNovoUsuario" tabindex="-1">
       <div class="modal-dialog">
@@ -1809,7 +1782,8 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <form id="formNovoUsuario">
+            <form id="formNovoUsuario" action="../actions/usuario_criar_admin.php" method="POST">
+              <?= csrfField() ?>
               <div class="form-group">
                 <label class="form-label">Nome completo <span class="required">*</span></label>
                 <input type="text" class="form-control" name="nome" id="nuNome" required maxlength="100">
@@ -1872,8 +1846,9 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <form id="formStatus" action="actions/alterar_status.php" method="POST">
+            <form id="formStatus" action="../actions/alterar_status.php" method="POST">
               <input type="hidden" name="pedido_id" id="statusPedidoId">
+              <?= csrfField() ?>
               <div class="form-group">
                 <label class="form-label">Novo Status</label>
                 <select class="form-control" name="status" id="selectStatus">
@@ -1900,8 +1875,9 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <form id="formProduto" action="actions/produto_salvar.php" method="POST" enctype="multipart/form-data">
+            <form id="formProduto" action="../actions/produto_salvar.php" method="POST" enctype="multipart/form-data">
               <input type="hidden" name="id" id="produtoId">
+              <?= csrfField() ?>
 
               <!-- Preview da imagem atual -->
               <div id="produtoImagemWrap" style="display:none;text-align:center;margin-bottom:1rem;">
@@ -2185,7 +2161,9 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
               },
-              body: `id=${id}`
+              body: withCsrfParams({
+                id
+              })
             })
             .then(r => r.json())
             .then(data => {
@@ -2228,7 +2206,10 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
               },
-              body: `id=${id}&bloqueado=${bloquear}`
+              body: withCsrfParams({
+                id,
+                bloqueado: bloquear ? 1 : 0
+              })
             })
             .then(r => {
               if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -2259,54 +2240,6 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
                 title: 'Falha na requisição: ' + err.message,
                 confirmButtonColor: 'var(--rose)'
               });
-            });
-        });
-      }
-
-      /* ── Modal Pacote ── */
-      function abrirModalPacote(pac = null) {
-        document.getElementById('modalPacoteTitulo').innerHTML =
-          pac ? '<i class="bi bi-pencil"></i> Editar Pacote' :
-          '<i class="bi bi-plus-lg"></i> Novo Pacote';
-        document.getElementById('pacoteId').value = pac?.id ?? '';
-        document.getElementById('pacoteQtd').value = pac?.quantidade ?? '';
-        document.getElementById('pacoteSabores').value = pac?.max_sabores ?? '';
-        document.getElementById('pacoteDesc').value = pac?.descricao ?? '';
-        document.getElementById('pacotePopular').checked = pac ? pac.popular == 1 : false;
-        document.getElementById('pacoteAtivo').checked = pac ? pac.ativo == 1 : true;
-        new bootstrap.Modal(document.getElementById('modalPacote')).show();
-      }
-
-      function excluirPacote(id, qtd) {
-        Swal.fire({
-          title: `Desativar pacote de ${qtd} un.?`,
-          text: 'Ele não aparecerá mais no site.',
-          icon: 'warning',
-          showCancelButton: true,
-          confirmButtonColor: '#e53935',
-          cancelButtonColor: '#6c757d',
-          confirmButtonText: 'Sim, desativar',
-          cancelButtonText: 'Cancelar'
-        }).then(r => {
-          if (!r.isConfirmed) return;
-          fetch('../actions/pacote_excluir.php', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-              },
-              body: `id=${id}`
-            })
-            .then(r => r.json())
-            .then(data => {
-              Swal.fire({
-                icon: data.sucesso ? 'success' : 'error',
-                title: data.mensagem,
-                timer: 2000,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end'
-              });
-              if (data.sucesso) setTimeout(recarregarSecao, 1500);
             });
         });
       }
@@ -2367,7 +2300,10 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
               },
-              body: `pedido_id=${pedidoId}&status=${novoStatus}`
+              body: withCsrfParams({
+                pedido_id: pedidoId,
+                status: novoStatus
+              })
             })
             .then(r => r.json())
             .then(data => {
@@ -2397,7 +2333,7 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           e.preventDefault();
           fetch('../actions/produto_salvar.php', {
               method: 'POST',
-              body: new FormData(this)
+              body: withCsrfFormData(new FormData(this))
             })
             .then(r => r.json())
             .then(data => {
@@ -2405,28 +2341,6 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
               Swal.fire({
                 icon: data.sucesso ? 'success' : 'error',
                 title: data.mensagem ?? (data.sucesso ? 'Produto salvo!' : 'Erro ao salvar produto.'),
-                timer: 2000,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end'
-              });
-              if (data.sucesso) setTimeout(recarregarSecao, 1500);
-            });
-        });
-
-        /* ── Submit: salvar pacote ── */
-        document.getElementById('formPacote').addEventListener('submit', function(e) {
-          e.preventDefault();
-          fetch('../actions/pacote_salvar.php', {
-              method: 'POST',
-              body: new FormData(this)
-            })
-            .then(r => r.json())
-            .then(data => {
-              bootstrap.Modal.getInstance(document.getElementById('modalPacote')).hide();
-              Swal.fire({
-                icon: data.sucesso ? 'success' : 'error',
-                title: data.mensagem,
                 timer: 2000,
                 showConfirmButton: false,
                 toast: true,
@@ -2444,7 +2358,7 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           btnSubmit.textContent = 'Salvando...';
           fetch('../actions/usuario_criar_admin.php', {
               method: 'POST',
-              body: new FormData(this)
+              body: withCsrfFormData(new FormData(this))
             })
             .then(r => {
               if (!r.ok) throw new Error('Servidor retornou HTTP ' + r.status);
@@ -2558,8 +2472,14 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
-                legend: { display: false },
-                tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} pedidos` } }
+                legend: {
+                  display: false
+                },
+                tooltip: {
+                  callbacks: {
+                    label: ctx => ` ${ctx.label}: ${ctx.raw} pedidos`
+                  }
+                }
               },
               cutout: '65%'
             }
@@ -2597,18 +2517,48 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           data: {
             labels,
             datasets: [{
-              label: 'Faturamento Diário (R$)', data: values,
-              borderColor: '#C2185B', backgroundColor: 'rgba(194,24,91,.08)',
-              tension: 0.4, fill: true, pointRadius: 4,
-              pointBackgroundColor: '#C2185B', pointBorderColor: '#fff', pointBorderWidth: 2
+              label: 'Faturamento Diário (R$)',
+              data: values,
+              borderColor: '#C2185B',
+              backgroundColor: 'rgba(194,24,91,.08)',
+              tension: 0.4,
+              fill: true,
+              pointRadius: 4,
+              pointBackgroundColor: '#C2185B',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2
             }]
           },
           options: {
             responsive: true,
-            plugins: { legend: { display: false } },
+            plugins: {
+              legend: {
+                display: false
+              }
+            },
             scales: {
-              y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { font: { size: 11 } } },
-              x: { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 10 } }
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0,0,0,.04)'
+                },
+                ticks: {
+                  font: {
+                    size: 11
+                  }
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                },
+                ticks: {
+                  font: {
+                    size: 10
+                  },
+                  maxTicksLimit: 10
+                }
+              }
             }
           }
         });
@@ -2622,20 +2572,47 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
           data: {
             labels: labels.slice(-6),
             datasets: [{
-              label: 'Faturamento (R$)', data: values.slice(-6),
+              label: 'Faturamento (R$)',
+              data: values.slice(-6),
               backgroundColor: [
                 'rgba(194,24,91,.85)', 'rgba(194,24,91,.75)', 'rgba(194,24,91,.65)',
                 'rgba(194,24,91,.55)', 'rgba(194,24,91,.45)', 'rgba(194,24,91,.85)'
               ],
-              borderColor: '#C2185B', borderWidth: 0, borderRadius: 8, borderSkipped: false
+              borderColor: '#C2185B',
+              borderWidth: 0,
+              borderRadius: 8,
+              borderSkipped: false
             }]
           },
           options: {
             responsive: true,
-            plugins: { legend: { display: false } },
+            plugins: {
+              legend: {
+                display: false
+              }
+            },
             scales: {
-              y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.04)' }, ticks: { font: { size: 11 } } },
-              x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(0,0,0,.04)'
+                },
+                ticks: {
+                  font: {
+                    size: 11
+                  }
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                },
+                ticks: {
+                  font: {
+                    size: 11
+                  }
+                }
+              }
             }
           }
         });
@@ -2651,14 +2628,23 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             datasets: [{
               data: values,
               backgroundColor: ['#FB8C00', '#1E88E5', '#C2185B', '#43A047', '#E53935'],
-              borderWidth: 3, borderColor: '#fff', hoverOffset: 6
+              borderWidth: 3,
+              borderColor: '#fff',
+              hoverOffset: 6
             }]
           },
           options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-              legend: { display: false },
-              tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} pedidos` } }
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  label: ctx => ` ${ctx.label}: ${ctx.raw} pedidos`
+                }
+              }
             },
             cutout: '65%'
           }
@@ -2705,7 +2691,7 @@ $flash = getFlash(); // lê e limpa a flash message da sessão
             document.querySelectorAll('#seletorPeriodo button').forEach(btn => {
               const ativo = btn.dataset.periodo === periodo;
               btn.style.background = ativo ? 'var(--rose)' : 'transparent';
-              btn.style.color      = ativo ? '#fff'        : 'var(--muted)';
+              btn.style.color = ativo ? '#fff' : 'var(--muted)';
             });
           })
           .catch(() => {

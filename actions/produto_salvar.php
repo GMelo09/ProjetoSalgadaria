@@ -11,6 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+csrfValidar();
+
 require_once __DIR__ . '/../classes/produto_class.php';
 
 $id           = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT) ?: null;
@@ -45,24 +47,29 @@ if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] !== UPLOAD_ERR_NO_FIL
         exit;
     }
 
-    $ext_permitidas = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    $ext = strtolower(pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION));
-
-    if (!in_array($ext, $ext_permitidas)) {
-        echo json_encode(['sucesso' => false, 'mensagem' => 'Formato invalido. Use JPG, PNG, GIF ou WEBP.']);
-        exit;
-    }
-
     if ($_FILES['imagem']['size'] > 5 * 1024 * 1024) {
         echo json_encode(['sucesso' => false, 'mensagem' => 'Imagem muito grande. Maximo: 5 MB.']);
         exit;
     }
 
-    $info = @getimagesize($_FILES['imagem']['tmp_name']);
-    if (!$info) {
-        echo json_encode(['sucesso' => false, 'mensagem' => 'O arquivo enviado nao e uma imagem valida.']);
+    // Valida MIME real pelos magic bytes — nao confia na extensao nem no nome enviado pelo cliente
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime  = $finfo->file($_FILES['imagem']['tmp_name']);
+
+    $mimesPermitidos = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/gif'  => 'gif',
+        'image/webp' => 'webp',
+    ];
+
+    if (!array_key_exists($mime, $mimesPermitidos)) {
+        echo json_encode(['sucesso' => false, 'mensagem' => 'Formato invalido. Use JPG, PNG, GIF ou WEBP.']);
         exit;
     }
+
+    // Extensao derivada do MIME real — ignora a extensao enviada pelo cliente
+    $ext = $mimesPermitidos[$mime];
 
     $dir = __DIR__ . '/../uploads/produtos/';
     if (!is_dir($dir)) {
@@ -84,9 +91,20 @@ $produto->categoria_id = $categoria_id;
 $produto->preco        = round($preco, 2);
 $produto->tag          = $tag;
 $produto->ativo        = $ativo;
-$produto->imagem       = $imagem_nome; // null se nenhuma imagem nova, nome do arquivo caso contrario
+$produto->imagem       = $imagem_nome; // null = sem nova imagem; string = nome do arquivo novo
 
 if ($id) {
+    // Remove a imagem antiga do disco quando uma nova e enviada
+    if ($imagem_nome !== null) {
+        $produtoAtual = $produto->BuscarPorId($id);
+        if (!empty($produtoAtual['imagem'])) {
+            $caminhoAntigo = __DIR__ . '/../uploads/produtos/' . $produtoAtual['imagem'];
+            if (is_file($caminhoAntigo)) {
+                unlink($caminhoAntigo);
+            }
+        }
+    }
+
     $ok = $produto->Editar($id);
     echo json_encode([
         'sucesso'  => $ok >= 0,

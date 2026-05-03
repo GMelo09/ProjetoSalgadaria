@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../classes/pedido_class.php';
 sessionStart();
-requireLogin('login.php?erro=login_obrigatorio');
+requireLogin('pages/login.php?erro=login_obrigatorio');
 
 $pedidoObj = new Pedido();
 $pedidos = $pedidoObj->ListarPorUsuario((int) ($_SESSION['usuario_id'] ?? 0));

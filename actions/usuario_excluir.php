@@ -1,11 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../dashboard/index.php');
-    exit;
+    redirectTo('../admin/dashboard.php');
 }
 
 // ── 1. Somente admin pode excluir usuários ───────────────────
@@ -21,16 +22,14 @@ $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
 
 if (!$id || $id <= 0) {
     setFlash('erro', 'ID inválido.');
-    header('Location: ../dashboard/index.php');
-    exit; // estava faltando — sem exit o código continuava rodando
+    redirectTo('../admin/dashboard.php');
 }
 
 // ── 4. Impede auto-exclusão ───────────────────────────────────
 // Um admin não pode se excluir enquanto está logado
 if ((int) $id === (int) $_SESSION['usuario_id']) {
     setFlash('erro', 'Você não pode excluir sua própria conta.');
-    header('Location: ../dashboard/index.php');
-    exit;
+    redirectTo('../admin/dashboard.php');
 }
 
 // ── 5. Executa a exclusão ────────────────────────────────────
@@ -43,5 +42,4 @@ if ($excluido > 0) {
     setFlash('erro', 'Usuário não encontrado ou já foi excluído.');
 }
 
-header('Location: ../dashboard/index.php');
-exit;
+redirectTo('../admin/dashboard.php');
