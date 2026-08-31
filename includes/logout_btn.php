@@ -1,18 +1,18 @@
 <?php
 /**
- * includes/partials/logout_btn.php
+ * includes/logout_btn.php
  *
  * Inclua este partial em TODAS as navbars no lugar do antigo:
  *   <a href="login.php?sair=1">Sair</a>
  *
  * Uso:
- *   <?php require_once __DIR__ . '/../includes/partials/logout_btn.php'; ?>
+ *   <?php require_once __DIR__ . '/../includes/logout_btn.php'; ?>
  *
  * O botão se parece com um link mas submete um form POST com CSRF.
  * O estilo pode ser sobrescrito via classe CSS no elemento pai.
  */
 ?>
-<form action="<?= rtrim(str_repeat('../', substr_count($_SERVER['PHP_SELF'], '/')-2), '/') ?>/actions/logout.php"
+<form action="<?= htmlspecialchars(appUrl('actions/logout.php'), ENT_QUOTES, 'UTF-8') ?>"
       method="POST"
       id="formLogout"
       style="display:inline;">

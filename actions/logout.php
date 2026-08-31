@@ -3,31 +3,30 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 sessionStart();
-requireAdminAjax();
 
-header('Content-Type: application/json');
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['sucesso' => false, 'mensagem' => 'Método inválido.']);
-    exit;
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    exit('Método não permitido. Use o botão Sair para encerrar a sessão.');
 }
 
 csrfValidar();
 
-require_once __DIR__ . '/../classes/pacote_class.php';
+// A saida vale para qualquer usuario, sem acessar ou alterar o banco.
+$_SESSION = [];
 
-$id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
+if (ini_get('session.use_cookies')) {
+    $cookie = session_get_cookie_params();
 
-if (!$id || $id <= 0) {
-    echo json_encode(['sucesso' => false, 'mensagem' => 'ID inválido.']);
-    exit;
+    setcookie(session_name(), '', [
+        'expires' => time() - 42000,
+        'path' => $cookie['path'],
+        'domain' => $cookie['domain'],
+        'secure' => $cookie['secure'],
+        'httponly' => $cookie['httponly'],
+        'samesite' => $cookie['samesite'] ?? 'Lax',
+    ]);
 }
 
-$pacote = new Pacote();
-$ok     = $pacote->Excluir($id);
-
-echo json_encode([
-    'sucesso'  => $ok > 0,
-    'mensagem' => $ok > 0 ? 'Pacote desativado.' : 'Pacote não encontrado.',
-]);
-exit;
+session_destroy();
+redirectTo('index.php', 303);
